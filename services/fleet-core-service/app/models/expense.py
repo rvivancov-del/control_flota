@@ -1,0 +1,30 @@
+"""Modelo ORM de la tabla fleet.expenses."""
+import uuid
+
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+
+from app.core.database import Base
+
+
+class Expense(Base):
+    """Gasto operativo asociado a un viaje (Lámina D-01). RF-08, RF-09, RF-10."""
+
+    __tablename__ = "expenses"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id"), nullable=False)
+    type = Column(String(20), nullable=False)  # combustible | peaje | alimentacion
+    amount = Column(Numeric(10, 2), nullable=False)
+    # Litros cargados — solo aplica a type="combustible". Permite calcular
+    # consumo (L/100km), que es una señal distinta del costo (el precio del
+    # diésel sube y baja; el consumo delata problemas mecánicos o de manejo).
+    liters = Column(Numeric(8, 2), nullable=True)
+    currency = Column(String(3), nullable=False, default="USD")
+    expense_date = Column(Date, nullable=False)
+    notes = Column(Text, nullable=True)
+    receipt_url = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    trip = relationship("Trip")

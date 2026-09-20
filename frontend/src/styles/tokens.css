@@ -1,0 +1,46 @@
+:root {
+  /* Marca FlotaControl */
+  --brand-navy: #14283f;
+  --brand-navy-light: #1f3f5f;
+  --brand-navy-soft: #e7ecf1;
+  --brand-accent: #e08a2e;
+  --brand-accent-dark: #b96f1f;
+  --brand-accent-soft: #fbead2;
+
+  /* Superficie y texto */
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-alt: #eef1f4;
+  --ink: #16202b;
+  --ink-muted: #5b6b7a;
+  --line: #dde3e8;
+  --line-strong: #c3ccd3;
+
+  /* Estado semántico */
+  --success: #2f8f5b;
+  --success-soft: #e2f3e8;
+  --warning: #d97706;
+  --warning-soft: #fdf1de;
+  --danger: #c73e3e;
+  --danger-soft: #fbe6e6;
+
+  /* Paleta categórica para gráficos de gasto (estilo figura científica) */
+  --chart-combustible: #3f7cac;
+  --chart-peaje: #e2a53d;
+  --chart-alimentacion: #b3467c;
+  --chart-mantenimiento: #c1502e;
+  --chart-grid: #e4e9ed;
+  --chart-axis: #94a3b1;
+
+  /* Tipografía */
+  --font-display: "Sora", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Espaciado y forma */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 1px 2px rgba(20, 40, 63, 0.06), 0 4px 16px rgba(20, 40, 63, 0.06);
+  --shadow-elevated: 0 8px 24px rgba(20, 40, 63, 0.14);
+}

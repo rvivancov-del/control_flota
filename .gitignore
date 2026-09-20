@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Pruebas y cobertura (artefactos regenerables)
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# Env files (nunca versionar secretos reales)
+.env
+services/**/.env
+frontend/.env
+
+# Docker
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

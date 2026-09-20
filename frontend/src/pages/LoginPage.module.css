@@ -1,0 +1,165 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 3rem 1.5rem;
+  background: radial-gradient(circle at 30% 20%, var(--brand-navy-light), var(--brand-navy) 65%);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #fff;
+  max-width: 480px;
+  width: 100%;
+}
+
+.brandName {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-top: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.slogan {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.98rem;
+  margin-top: 0.35rem;
+}
+
+.road {
+  position: relative;
+  width: 100%;
+  height: 78px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0d1c2c, #16304c);
+  overflow: hidden;
+  margin-top: 1.75rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.roadLine {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  transform: translateY(-50%);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--brand-accent) 0,
+    var(--brand-accent) 24px,
+    transparent 24px,
+    transparent 48px
+  );
+  animation: roll 1.2s linear infinite;
+}
+
+.truckWrap {
+  position: absolute;
+  bottom: 9px;
+  left: 0;
+  animation: drive 6.5s linear infinite;
+}
+
+@keyframes roll {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: -48px;
+  }
+}
+
+@keyframes drive {
+  0% {
+    transform: translateX(-20%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  padding: 2rem 2.1rem;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.cardTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.field input {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.8rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.field input:focus {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 1px;
+  border-color: var(--brand-accent);
+}
+
+.submit {
+  background: var(--brand-navy);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: background 0.15s ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--brand-navy-light);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.footer {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.78rem;
+  text-align: center;
+}
