@@ -1,0 +1,36 @@
+{
+  "version": "0.1.0-provisional",
+  "estado": "provisional_desarrollador",
+  "procedencia": "Valores escritos por el desarrollador durante el prototipo; NO provienen de expertos. Se reemplazan con la agregación de 07_MATRICES_DE_ANALISIS/ahp_juicios_expertos.xlsx (Fase 2 del plan de coherencia) y este archivo pasa a estado 'expertos_n=<n>'.",
+  "criterios": ["seguridad", "urgencia", "costo"],
+  "comparaciones_saaty": {
+    "seguridad_vs_urgencia": 3,
+    "seguridad_vs_costo": 5,
+    "urgencia_vs_costo": 3
+  },
+  "criticidad_seguridad": {
+    "frenos": 1.0,
+    "llantas": 0.8,
+    "bocines": 0.6,
+    "aceite": 0.3,
+    "filtros": 0.2,
+    "otro": 0.4
+  },
+  "costo": {
+    "direccion": "mayor_costo_mayor_prioridad",
+    "respaldo_usd": {
+      "llantas": 275.0,
+      "frenos": 150.0,
+      "bocines": 120.0,
+      "aceite": 55.0,
+      "filtros": 40.0,
+      "otro": 100.0
+    }
+  },
+  "urgencia": {
+    "proximo_km": 1500,
+    "sin_urgencia_km": 6000,
+    "puntaje_en_proximo": 0.5,
+    "puntaje_sin_kilometraje": 0.3
+  }
+}

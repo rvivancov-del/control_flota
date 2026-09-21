@@ -77,9 +77,42 @@ export type AhpCriteriaWeights = {
   is_consistent: boolean;
 };
 
+/** Procedencia de los juicios que produjeron el ranking (estado y versión de ahp_config.json). */
+export type AhpConfigInfo = {
+  version: string;
+  estado: string;
+  procedencia: string;
+  costo_direccion: string;
+};
+
 export type MaintenancePriorityResponse = {
   items: MaintenancePriorityItem[];
   weights: AhpCriteriaWeights;
+  config: AhpConfigInfo;
+};
+
+/** RF-19: un vehículo del ranking de atención (costo relativo + peor urgencia). */
+export type VehicleAttentionItem = {
+  vehicle_id: string;
+  vehicle_plate: string;
+  total_cost: string;
+  cost_score: number;
+  urgency_score: number;
+  worst_urgency: MaintenanceUrgency | "sin_pendientes";
+  attention_score: number;
+};
+
+export type VehicleAttentionWeights = {
+  urgencia: number;
+  costo: number;
+  urgency_over_cost: number;
+  /** 0 por construcción: una matriz recíproca 2x2 siempre es consistente. */
+  consistency_ratio: number;
+};
+
+export type VehicleAttentionResponse = {
+  items: VehicleAttentionItem[];
+  weights: VehicleAttentionWeights;
 };
 
 export type ReportFilters = {

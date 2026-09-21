@@ -48,6 +48,7 @@ import type {
   MaintenanceStatus,
   RouteSummaryResponse,
   TrendPoint,
+  VehicleAttentionResponse,
 } from "../types/reports";
 import styles from "./DashboardPage.module.css";
 
@@ -168,12 +169,10 @@ function periodProgress(granularity: Granularity, isCurrent: boolean): { elapsed
   return { elapsed: isCurrent ? now.getDate() : total, total };
 }
 
-/** Escala de comparación pareada de Saaty (AHP — Analytic Hierarchy
- * Process): en vez de fijar los pesos de la puntuación de prioridad en el
- * código, se derivan de "¿cuánto más importante es la urgencia de
- * mantenimiento frente al costo?". Para 2 criterios, si la razón de
- * importancia es a:1, el peso normalizado es a/(a+1) y 1/(a+1) — el
- * resultado exacto del método del autovector para una matriz 2×2. */
+/** Opciones de la escala de comparación pareada de Saaty (AHP) para la razón
+ * "¿cuánto más importante es la urgencia de mantenimiento frente al costo?".
+ * El valor viaja al backend (GET /reports/dashboard/vehicle-attention), que
+ * deriva los pesos y calcula el ranking con el mismo motor de RF-20. */
 const SAATY_OPTIONS = [
   { value: 1, label: "Igual de importantes" },
   { value: 2, label: "Un poco más importante la urgencia" },
@@ -182,11 +181,6 @@ const SAATY_OPTIONS = [
   { value: 7, label: "Mucho más importante la urgencia" },
   { value: 9, label: "La urgencia es lo único que importa" },
 ];
-
-/** Deriva los pesos {urgencia, costo} de la razón elegida en SAATY_OPTIONS. */
-function ahpWeights(urgencyOverCost: number): { urgency: number; cost: number } {
-  return { urgency: urgencyOverCost / (urgencyOverCost + 1), cost: 1 / (urgencyOverCost + 1) };
-}
 
 /** RF-15, RF-16, RF-19: panel principal -- KPIs del período, gráficas de
  * costo/tendencia, priorización de mantenimiento interactiva (AHP de 2
@@ -200,6 +194,7 @@ function DashboardPage() {
   const [previousPeriodSummary, setPreviousPeriodSummary] = useState<DashboardSummary | null>(null);
   const [driverSummary, setDriverSummary] = useState<DriverSummaryResponse | null>(null);
   const [routeSummary, setRouteSummary] = useState<RouteSummaryResponse | null>(null);
+  const [attention, setAttention] = useState<VehicleAttentionResponse | null>(null);
   const [category, setCategory] = useState<ExpenseCategory | "">("");
   const [granularity, setGranularity] = useState<Granularity>("month");
   const [periodOffset, setPeriodOffset] = useState(0);
@@ -259,6 +254,30 @@ function DashboardPage() {
       clearInterval(interval);
     };
   }, [token, category, granularity, periodOffset]);
+
+  // RF-19: el ranking de atención lo calcula el backend (mismo motor y misma
+  // escala de urgencia que RF-20); se vuelve a pedir al mover la razón de Saaty.
+  useEffect(() => {
+    if (!token) return;
+    const filters = category ? { category, ...current } : { ...current };
+    let cancelled = false;
+    const loadAttention = () => {
+      reportsApi
+        .vehicleAttention(token, urgencyOverCost, filters)
+        .then((data) => {
+          if (!cancelled) setAttention(data);
+        })
+        .catch(() => {
+          if (!cancelled) setAttention(null);
+        });
+    };
+    loadAttention();
+    const interval = setInterval(loadAttention, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [token, category, granularity, periodOffset, urgencyOverCost]);
 
   const handleExport = async () => {
     if (!token) return;
@@ -359,33 +378,7 @@ function DashboardPage() {
     { combustible: 0, peaje: 0, alimentacion: 0, mantenimiento: 0 },
   );
 
-  // Ranking de prioridad: costo relativo + peor urgencia de mantenimiento por
-  // vehículo, ponderados según la comparación pareada de Saaty (AHP) elegida
-  // arriba — no un 60/40 fijo en el código.
-  const weights = ahpWeights(urgencyOverCost);
-  const priorityRanking = useMemo(() => {
-    if (!summary) return [];
-    const maxCost = Math.max(1, ...summary.vehicles.map((v) => Number(v.total_cost)));
-    const urgencyRank: Record<string, number> = { vencido: 0, proximo: 1, normal: 2 };
-    const urgencyWeight: Record<string, number> = { vencido: 1, proximo: 0.55, normal: 0 };
-    const worstByPlate = new Map<string, string>();
-    for (const alert of maintenanceStatus?.alerts ?? []) {
-      const current = worstByPlate.get(alert.vehicle_plate);
-      if (!current || urgencyRank[alert.urgency] < urgencyRank[current]) {
-        worstByPlate.set(alert.vehicle_plate, alert.urgency);
-      }
-    }
-    return summary.vehicles
-      .map((v) => {
-        const cost = Number(v.total_cost);
-        const urgency = worstByPlate.get(v.plate);
-        const score = (cost / maxCost) * weights.cost + (urgency ? urgencyWeight[urgency] : 0) * weights.urgency;
-        return { plate: v.plate, cost, urgency, score };
-      })
-      .filter((v) => v.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-  }, [summary, maintenanceStatus, weights.cost, weights.urgency]);
+  const priorityRanking = attention?.items ?? [];
 
   return (
     <AppShell title={`Hola, ${user?.full_name ?? user?.username}`}>
@@ -618,24 +611,26 @@ function DashboardPage() {
                 ))}
               </select>
               <span className={styles.ahpWeights}>
-                Con esta elección: urgencia {(weights.urgency * 100).toFixed(0)}% · costo {(weights.cost * 100).toFixed(0)}% del criterio
+                {attention
+                  ? `Con esta elección: urgencia ${(attention.weights.urgencia * 100).toFixed(0)}% · costo ${(attention.weights.costo * 100).toFixed(0)}% del criterio`
+                  : "Calculando pesos…"}
               </span>
             </div>
             {priorityRanking.length > 0 ? (
               priorityRanking.map((v, idx) => (
-                <div className={styles.priorityItem} key={v.plate}>
+                <div className={styles.priorityItem} key={v.vehicle_id}>
                   <span className={styles.priorityRank}>#{idx + 1}</span>
                   <div className={styles.priorityBody}>
                     <div className={styles.priorityHead}>
-                      <span className={styles.priorityPlate}>{v.plate}</span>
-                      <span>{currency.format(v.cost)}</span>
+                      <span className={styles.priorityPlate}>{v.vehicle_plate}</span>
+                      <span>{currency.format(Number(v.total_cost))}</span>
                     </div>
                     <div className={styles.priorityBarTrack}>
                       <div
                         className={styles.priorityBarFill}
                         style={{
-                          width: `${Math.round(v.score * 100)}%`,
-                          background: v.urgency === "vencido" ? "var(--danger)" : v.urgency === "proximo" ? "var(--warning)" : "var(--brand-accent)",
+                          width: `${Math.round(v.attention_score * 100)}%`,
+                          background: v.worst_urgency === "vencido" ? "var(--danger)" : v.worst_urgency === "proximo" ? "var(--warning)" : "var(--brand-accent)",
                         }}
                       />
                     </div>

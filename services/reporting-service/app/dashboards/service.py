@@ -8,8 +8,9 @@ from decimal import Decimal
 from typing import Optional
 
 from app.core.fleet_client import FleetClient
-from app.dashboards import ahp
+from app.dashboards import ahp, alert_policy
 from app.dashboards.schemas import (
+    AhpConfigInfo,
     AhpCriteriaWeights,
     DashboardSummary,
     DriverExpenseBreakdown,
@@ -27,6 +28,9 @@ from app.dashboards.schemas import (
     RouteSummaryResponse,
     TrendPoint,
     TrendResponse,
+    VehicleAttentionItem,
+    VehicleAttentionResponse,
+    VehicleAttentionWeights,
     VehicleSummary,
 )
 
@@ -37,10 +41,6 @@ _EXPENSE_FIELD = {
 }
 
 VALID_CATEGORIES = {"combustible", "peaje", "alimentacion", "mantenimiento"}
-
-# A partir de cuántos km restantes un mantenimiento pendiente pasa de
-# "normal" a "próximo" — umbral de alerta temprana, no solo "ya vencido".
-URGENCY_THRESHOLD_KM = 1500
 
 
 def _date_in_range(value: date, date_from: Optional[date], date_to: Optional[date]) -> bool:
@@ -501,14 +501,7 @@ def build_maintenance_status(client: FleetClient, vehicle_id: Optional[str] = No
 
             scheduled = record.get("scheduled_mileage_km")
             remaining = (scheduled - current_km) if scheduled is not None else None
-            if remaining is None:
-                urgency = "normal"
-            elif remaining <= 0:
-                urgency = "vencido"
-            elif remaining <= URGENCY_THRESHOLD_KM:
-                urgency = "proximo"
-            else:
-                urgency = "normal"
+            urgency = alert_policy.classify_urgency(remaining)
 
             alerts.append(
                 MaintenanceAlertDetail(
@@ -541,11 +534,12 @@ def build_maintenance_priority(
     kilometraje y costo estimado — en vez del criterio único (solo km
     restantes) de `build_maintenance_status`.
 
-    Ver app/dashboards/ahp.py para la matriz de comparación pareada, la
-    justificación de los pesos y el cálculo del ratio de consistencia.
-    Metodológicamente equivalente a lo revisado en Akcaer, Öztürk y Yüksel
-    (2026) y Nugraha, Muhidong y Soma (2025), adaptado de mantenimiento de
-    infraestructura vial/ferroviaria a mantenimiento de flota vehicular."""
+    Ver app/dashboards/ahp.py y ahp_config.json para el método, la matriz de
+    comparación pareada, su procedencia y el cálculo del ratio de
+    consistencia. Aplica el método AHP que Akcaer et al. (2026) y Nugraha et
+    al. (2025) usan en mantenimiento ferroviario y vial, pero con un conjunto
+    de criterios propio (seguridad, urgencia y costo) adaptado a una flota
+    vehicular; la respuesta declara la procedencia de los juicios en `config`."""
     vehicles = client.list_vehicles()
     if vehicle_id:
         vehicles = [v for v in vehicles if v["id"] == vehicle_id]
@@ -577,8 +571,8 @@ def build_maintenance_priority(
             km_remaining = (scheduled - current_km) if scheduled is not None else None
 
             mtype = record["maintenance_type"]
-            seguridad = ahp.SAFETY_CRITICALITY.get(mtype, ahp.SAFETY_CRITICALITY["otro"])
-            urgencia = ahp.urgency_score(km_remaining, URGENCY_THRESHOLD_KM)
+            seguridad = ahp.safety_score(mtype)
+            urgencia = ahp.urgency_score(km_remaining)
             costo = ahp.cost_score(mtype, avg_cost_by_type)
             score = ahp.priority_score(seguridad, urgencia, costo)
 
@@ -606,5 +600,67 @@ def build_maintenance_priority(
             costo=round(weights.costo, 4),
             consistency_ratio=round(weights.consistency_ratio, 4),
             is_consistent=weights.is_consistent,
+        ),
+        config=AhpConfigInfo(
+            version=ahp.CONFIG.version,
+            estado=ahp.CONFIG.estado,
+            procedencia=ahp.CONFIG.procedencia,
+            costo_direccion=ahp.CONFIG.costo.direccion,
+        ),
+    )
+
+
+def build_vehicle_attention(
+    client: FleetClient,
+    urgency_over_cost: float = 3.0,
+    vehicle_id: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    category: Optional[str] = None,
+    limit: int = 5,
+) -> VehicleAttentionResponse:
+    """RF-19: ranking de atención por vehículo, con AHP de dos criterios.
+
+    Combina el costo relativo del vehículo en el período (el mismo total del
+    resumen del tablero) con su peor urgencia de mantenimiento pendiente. La
+    urgencia sale del mismo `urgency_score` que usa RF-20, así el tablero y
+    la página de mantenimiento no puntúan la urgencia con escalas distintas.
+    Los pesos salen de `urgency_over_cost` (escala de Saaty, 1/9 a 9)."""
+    weights = ahp.weights_two_criteria(urgency_over_cost)
+    summary = build_dashboard_summary(client, vehicle_id, date_from, date_to, category)
+    pending = build_maintenance_priority(client, vehicle_id)
+
+    worst_score: dict[str, float] = {}
+    worst_class: dict[str, str] = {}
+    class_rank = {alert_policy.VENCIDO: 0, alert_policy.PROXIMO: 1, alert_policy.NORMAL: 2}
+    for item in pending.items:
+        key = str(item.vehicle_id)
+        worst_score[key] = max(worst_score.get(key, 0.0), item.urgencia_score)
+        level = alert_policy.classify_urgency(item.km_remaining)
+        if key not in worst_class or class_rank[level] < class_rank[worst_class[key]]:
+            worst_class[key] = level
+
+    vehicles = [
+        {"vehicle_id": str(v.vehicle_id), "plate": v.plate, "total_cost": v.total_cost} for v in summary.vehicles
+    ]
+    ranked = ahp.rank_vehicle_attention(vehicles, worst_score, weights, limit)
+    return VehicleAttentionResponse(
+        items=[
+            VehicleAttentionItem(
+                vehicle_id=r.vehicle_id,
+                vehicle_plate=r.plate,
+                total_cost=Decimal(str(round(r.total_cost, 2))),
+                cost_score=round(r.cost_score, 4),
+                urgency_score=round(r.urgency_score, 4),
+                worst_urgency=worst_class.get(r.vehicle_id, "sin_pendientes"),
+                attention_score=round(r.attention_score, 4),
+            )
+            for r in ranked
+        ],
+        weights=VehicleAttentionWeights(
+            urgencia=round(weights.urgencia, 4),
+            costo=round(weights.costo, 4),
+            urgency_over_cost=weights.urgency_over_cost,
+            consistency_ratio=round(weights.consistency_ratio, 4),
         ),
     )

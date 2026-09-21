@@ -5,7 +5,7 @@ from datetime import date
 from typing import Callable, Optional, TypeVar
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.core.deps import CurrentUser, get_current_user
@@ -20,6 +20,7 @@ from app.dashboards.schemas import (
     MaintenanceStatus,
     RouteSummaryResponse,
     TrendResponse,
+    VehicleAttentionResponse,
 )
 from app.dashboards.service import (
     build_cost_trend,
@@ -30,6 +31,7 @@ from app.dashboards.service import (
     build_maintenance_report,
     build_maintenance_status,
     build_route_summary,
+    build_vehicle_attention,
 )
 
 router = APIRouter(tags=["dashboards"])
@@ -140,6 +142,24 @@ def dashboard_maintenance_priority(
     urgencia por kilometraje, costo estimado) — no solo por km restantes
     como en /dashboard/maintenance-status. Ver app/dashboards/ahp.py."""
     return _call_or_502(lambda: build_maintenance_priority(client, vehicle_id))
+
+
+@router.get("/dashboard/vehicle-attention", response_model=VehicleAttentionResponse)
+def dashboard_vehicle_attention(
+    urgency_over_cost: float = Query(3.0, ge=1 / 9, le=9, description="Razón de Saaty: cuántas veces más importante es la urgencia que el costo"),
+    vehicle_id: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    category: Optional[str] = None,
+    limit: int = Query(5, ge=1, le=50),
+    client: FleetClient = Depends(_fleet_client),
+) -> VehicleAttentionResponse:
+    """RF-19: ranking de atención por vehículo (costo relativo + peor urgencia
+    de mantenimiento) con AHP de dos criterios. Usa el mismo motor y la misma
+    escala de urgencia que RF-20 (ver app/dashboards/ahp.py)."""
+    return _call_or_502(
+        lambda: build_vehicle_attention(client, urgency_over_cost, vehicle_id, date_from, date_to, category, limit)
+    )
 
 
 @router.get("/reports/maintenance", response_model=list[MaintenanceReportItem])
