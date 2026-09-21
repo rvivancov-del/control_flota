@@ -5,7 +5,11 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config_guard import assert_secure_configuration
 from app.routers import auth, roles, users
+
+# RNF-02: fuera de desarrollo no arranca con secretos por defecto.
+assert_secure_configuration("auth-service")
 
 app = FastAPI(title="auth-service", version="0.1.0")
 

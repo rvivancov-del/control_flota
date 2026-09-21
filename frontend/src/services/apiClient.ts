@@ -56,6 +56,10 @@ async function request<T>(
 
   if (!response.ok) {
     let detail = response.statusText;
+    if (response.status === 429) {
+      // El gateway limita los intentos por minuto (RNF-03, RF-18) y responde sin JSON.
+      throw new ApiError(429, "Demasiados intentos seguidos. Espera un minuto e inténtalo de nuevo.");
+    }
     try {
       const body = await response.json();
       detail = extractErrorMessage(body, detail);

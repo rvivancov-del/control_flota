@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.analytics.router import router as analytics_router
+from app.core.config_guard import assert_secure_configuration
 from app.despacho.router import router as despacho_router
 from app.drivers.router import router as drivers_router
 from app.expenses.router import query_router as expenses_query_router
@@ -14,6 +15,9 @@ from app.expenses.router import router as expenses_router
 from app.maintenance.router import router as maintenance_router
 from app.trips.router import router as trips_router
 from app.vehicles.router import router as vehicles_router
+
+# RNF-02: fuera de desarrollo no arranca con secretos por defecto.
+assert_secure_configuration("fleet-core-service")
 
 app = FastAPI(title="fleet-core-service", version="0.1.0")
 

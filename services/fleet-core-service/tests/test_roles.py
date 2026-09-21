@@ -165,3 +165,11 @@ def test_el_operador_no_puede_administrar_catalogo_ni_qr():
         ("POST", "/drivers/{driver_id}/revoke-qr"),
         ("POST", "/vehicles"),
     ]
+
+
+@pytest.mark.parametrize("method,path", sorted(MATRIZ))
+@pytest.mark.parametrize("role", ["admin", "operador"])
+def test_un_token_con_cambio_de_clave_pendiente_no_opera(client, method, path, role):
+    """RNF-02: auth-service marca con `mcp` el token de quien debe cambiar su contraseña."""
+    r = _llamar(client, method, path, _token(role, mcp=True))
+    assert r.status_code == 403 and "cambiar su contraseña" in r.text

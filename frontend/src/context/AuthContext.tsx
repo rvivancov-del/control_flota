@@ -2,7 +2,7 @@
 // para sobrevivir un refresh de página -- expuesta a toda la app vía useAuth().
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { authApi } from "../services/authApi";
-import type { User } from "../types/auth";
+import type { LoginResponse, User } from "../types/auth";
 
 const STORAGE_KEY = "flotacontrol.session";
 
@@ -19,6 +19,8 @@ type AuthContextValue = {
   isAdmin: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  /** Reemplaza la sesión (token y usuario), p. ej. tras cambiar la contraseña. */
+  applySession: (response: LoginResponse) => void;
   logout: () => void;
 };
 
@@ -48,14 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const response = await authApi.login(username, password);
+  const applySession = (response: LoginResponse) => {
     setToken(response.access_token);
     setUser(response.user);
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ token: response.access_token, user: response.user }),
     );
+  };
+
+  const login = async (username: string, password: string) => {
+    applySession(await authApi.login(username, password));
   };
 
   const logout = () => {
@@ -72,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: user?.role.name === "admin",
       isLoading,
       login,
+      applySession,
       logout,
     }),
     [token, user, isLoading],

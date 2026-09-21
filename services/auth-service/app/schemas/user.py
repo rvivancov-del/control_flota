@@ -26,6 +26,8 @@ class UserCreate(BaseModel):
     password: str
     full_name: Optional[str] = None
     role_id: uuid.UUID
+    # El administrador conoce la contraseña inicial: con esto el usuario debe cambiarla al ingresar.
+    must_change_password: bool = False
 
     @field_validator("password")
     @classmethod
@@ -38,6 +40,7 @@ class UserUpdate(BaseModel):
     role_id: Optional[uuid.UUID] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    must_change_password: Optional[bool] = None
 
     @field_validator("password")
     @classmethod
@@ -55,4 +58,8 @@ class UserRead(BaseModel):
     full_name: Optional[str]
     is_active: bool
     role: RoleRead
+    # RNF-03: fin del bloqueo temporal por intentos fallidos (nulo si no está bloqueada);
+    # RNF-02: debe cambiar su contraseña antes de usar el sistema.
+    locked_until: Optional[datetime]
+    must_change_password: bool
     created_at: Optional[datetime]
