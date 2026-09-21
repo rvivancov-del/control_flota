@@ -54,6 +54,7 @@ function TripDetailPage() {
     liters: "",
     currency: "USD",
     expense_date: new Date().toISOString().slice(0, 10),
+    location: "",
     notes: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,9 +138,11 @@ function TripDetailPage() {
       await fleetApi.createExpense(token, trip.id, {
         ...expenseForm,
         liters: expenseForm.liters === "" ? undefined : expenseForm.liters,
+        // RF-09: la ubicación solo se envía (y es obligatoria) en los peajes
+        location: expenseForm.type === "peaje" ? expenseForm.location : undefined,
       });
       setIsExpenseModalOpen(false);
-      setExpenseForm({ type: "combustible", amount: 0, liters: "", currency: "USD", expense_date: new Date().toISOString().slice(0, 10), notes: "" });
+      setExpenseForm({ type: "combustible", amount: 0, liters: "", currency: "USD", expense_date: new Date().toISOString().slice(0, 10), location: "", notes: "" });
       load();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "No se pudo registrar el gasto.");
@@ -271,6 +274,7 @@ function TripDetailPage() {
                   <th>Base + IVA</th>
                   <th>Litros</th>
                   <th>Fecha</th>
+                  <th>Ubicación</th>
                   <th>Notas</th>
                 </tr>
               </thead>
@@ -291,6 +295,7 @@ function TripDetailPage() {
                       </td>
                       <td className="mono">{e.liters != null ? Number(e.liters).toFixed(2) : "—"}</td>
                       <td className="mono">{e.expense_date}</td>
+                      <td>{e.location ?? "—"}</td>
                       <td>{e.notes ?? "—"}</td>
                     </tr>
                   );
@@ -410,6 +415,19 @@ function TripDetailPage() {
                   placeholder="Permite calcular consumo (L/100km)"
                   value={expenseForm.liters}
                   onChange={(e) => setExpenseForm({ ...expenseForm, liters: e.target.value === "" ? "" : Number(e.target.value) })}
+                />
+              </div>
+            )}
+            {expenseForm.type === "peaje" && (
+              <div className={styles.field}>
+                <label htmlFor="location">Ubicación del peaje</label>
+                <input
+                  id="location"
+                  maxLength={120}
+                  placeholder="Ej.: Peaje Nueva Esperanza"
+                  value={expenseForm.location ?? ""}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, location: e.target.value })}
+                  required
                 />
               </div>
             )}

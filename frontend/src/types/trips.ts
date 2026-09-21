@@ -61,9 +61,39 @@ export type Expense = {
   liters: string | null;
   currency: string;
   expense_date: string;
+  /** RF-09: ubicación del peaje; nula en gastos que no son peaje y en peajes históricos. */
+  location: string | null;
   notes: string | null;
   receipt_url: string | null;
   created_at: string | null;
+};
+
+/** RF-14: gasto con los datos de su viaje, para consultarlos sin abrir cada viaje. */
+export type ExpenseRow = Expense & {
+  vehicle_id: string;
+  driver_id: string;
+  origin: string;
+  destination: string;
+};
+
+/** RF-14: filtros de la consulta de viajes (todos opcionales). */
+export type TripFilters = {
+  vehicle_id?: string;
+  driver_id?: string;
+  status_filter?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+/** RF-14: filtros de la consulta de gastos (todos opcionales). */
+export type ExpenseFilters = {
+  vehicle_id?: string;
+  driver_id?: string;
+  type?: string;
+  date_from?: string;
+  date_to?: string;
+  /** Máximo de filas que devuelve el servidor (por defecto 1000, tope 5000). */
+  limit?: string;
 };
 
 export type ExpenseInput = {
@@ -72,5 +102,7 @@ export type ExpenseInput = {
   liters?: number;
   currency: string;
   expense_date: string;
+  /** Obligatoria cuando type = "peaje" (RF-09). */
+  location?: string;
   notes?: string;
 };

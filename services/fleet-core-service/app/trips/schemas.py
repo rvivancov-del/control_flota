@@ -7,6 +7,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
+TRIP_STATUSES = {"planificado", "en_curso", "completado", "anulado"}
+
 
 class TripCreate(BaseModel):
     vehicle_id: uuid.UUID

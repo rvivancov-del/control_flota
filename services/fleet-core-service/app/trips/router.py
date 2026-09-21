@@ -1,8 +1,10 @@
 """Ciclo de vida de un viaje: crear, listar/filtrar, iniciar, cerrar,
 anular y corregir el ingreso (RF-06, RF-07, RF-13, RF-14)."""
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -13,6 +15,7 @@ from app.models.maintenance import MaintenanceRecord
 from app.models.trip import Trip
 from app.models.vehicle import Vehicle
 from app.trips.schemas import (
+    TRIP_STATUSES,
     MaintenanceAlertBrief,
     TripClose,
     TripCloseResult,
@@ -54,10 +57,27 @@ def list_trips(
     vehicle_id: uuid.UUID | None = None,
     driver_id: uuid.UUID | None = None,
     status_filter: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     db: Session = Depends(get_db),
 ) -> list[TripRead]:
-    """RF-14: consulta y filtrado de viajes por vehículo, conductor o estado."""
+    """RF-14: consulta y filtrado de viajes por vehículo, conductor, estado o rango
+    de fechas de salida (mismo criterio de fecha que /analytics/trips)."""
+    if status_filter is not None and status_filter not in TRIP_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"status_filter debe ser uno de: {', '.join(sorted(TRIP_STATUSES))}",
+        )
+    if date_from is not None and date_to is not None and date_from > date_to:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="date_from no puede ser posterior a date_to.",
+        )
     query = db.query(Trip)
+    if date_from is not None:
+        query = query.filter(func.date(Trip.departure_at) >= date_from)
+    if date_to is not None:
+        query = query.filter(func.date(Trip.departure_at) <= date_to)
     if vehicle_id is not None:
         query = query.filter(Trip.vehicle_id == vehicle_id)
     if driver_id is not None:
@@ -152,8 +172,10 @@ def close_trip(
     trip.revenue = payload.revenue
     trip.status = "completado"
 
+    # El odómetro del vehículo nunca retrocede: si otro viaje ya registró un
+    # kilometraje mayor (cierres fuera de orden), se conserva ese valor.
     vehicle = db.get(Vehicle, trip.vehicle_id)
-    vehicle.current_mileage_km = payload.end_mileage_km
+    vehicle.current_mileage_km = max(vehicle.current_mileage_km, payload.end_mileage_km)
 
     pending = (
         db.query(MaintenanceRecord)

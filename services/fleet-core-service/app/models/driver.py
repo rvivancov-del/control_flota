@@ -1,16 +1,24 @@
 """Modelo ORM de la tabla fleet.drivers."""
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, func
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
+from app.drivers.licenses import LICENSE_TYPES
 
 
 class Driver(Base):
     """Conductor de la flota (Lámina D-01). RF-05, RF-18 (despacho por QR)."""
 
     __tablename__ = "drivers"
+    __table_args__ = (
+        CheckConstraint(
+            "license_type IS NULL OR license_type IN (" + ", ".join(f"'{c}'" for c in LICENSE_TYPES) + ")",
+            name="ck_drivers_license_type",
+        ),
+        CheckConstraint("status IN ('activo', 'inactivo')", name="ck_drivers_status"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String(120), nullable=False)
@@ -33,6 +41,10 @@ class Driver(Base):
     qr_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     qr_token_last_used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # RNF-11 (LOPDP): fecha en que se suprimieron los datos personales del
+    # conductor. Los viajes y gastos se conservan (son historial contable), pero
+    # ya no permiten identificar a la persona. Es irreversible.
+    anonymized_at = Column(DateTime(timezone=True), nullable=True)
 
     @property
     def has_qr(self) -> bool:

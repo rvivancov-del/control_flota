@@ -71,7 +71,7 @@ def test_el_operador_opera_viajes_gastos_y_mantenimiento(base_url, auth_headers,
     gasto = requests.post(
         f"{base_url}/fleet/trips/{trip_id}/expenses",
         headers=operator_headers,
-        json={"type": "peaje", "amount": "3.50", "expense_date": salida.date().isoformat()},
+        json={"type": "peaje", "amount": "3.50", "expense_date": salida.date().isoformat(), "location": "Peaje de prueba"},
     )
     assert gasto.status_code == 201, gasto.text
 

@@ -6,14 +6,14 @@ import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { fleetApi } from "../services/fleetApi";
 import { ApiError } from "../services/apiClient";
-import type { Driver, DriverInput, DriverQrIssued, Vehicle } from "../types/fleet";
+import type { Driver, DriverInput, DriverQrIssued, LicenseType, Vehicle } from "../types/fleet";
 import { buildDespachoLink } from "../utils/despachoLink";
 import styles from "./DriversPage.module.css";
 
 const EMPTY_FORM: DriverInput & { status: string } = {
   full_name: "",
   license_number: "",
-  license_type: "",
+  license_type: "E",
   phone: "",
   assigned_vehicle_id: "",
   status: "activo",
@@ -40,6 +40,7 @@ function DriversPage() {
   const { token, isAdmin } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [licenseTypes, setLicenseTypes] = useState<LicenseType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -64,10 +65,11 @@ function DriversPage() {
   const load = () => {
     if (!token) return;
     setIsLoading(true);
-    Promise.all([fleetApi.listDrivers(token), fleetApi.listVehicles(token)])
-      .then(([driversData, vehiclesData]) => {
+    Promise.all([fleetApi.listDrivers(token), fleetApi.listVehicles(token), fleetApi.listLicenseTypes(token)])
+      .then(([driversData, vehiclesData, licenseTypesData]) => {
         setDrivers(driversData);
         setVehicles(vehiclesData);
+        setLicenseTypes(licenseTypesData);
       })
       .catch(() => setLoadError("No se pudo cargar la lista de conductores."))
       .finally(() => setIsLoading(false));
@@ -102,17 +104,37 @@ function DriversPage() {
     setIsSubmitting(true);
     setFormError(null);
     try {
-      const payload = { ...form, assigned_vehicle_id: form.assigned_vehicle_id || undefined };
       if (editing) {
-        const { license_number: _license, ...updatable } = payload;
-        await fleetApi.updateDriver(token, editing.id, updatable);
+        // RNF-11: todos los datos personales son rectificables, incluida la licencia;
+        // "sin asignar" se envía como null para poder quitar el vehículo.
+        await fleetApi.updateDriver(token, editing.id, { ...form, assigned_vehicle_id: form.assigned_vehicle_id || null });
       } else {
-        setIssued(await fleetApi.createDriver(token, payload));
+        setIssued(await fleetApi.createDriver(token, { ...form, assigned_vehicle_id: form.assigned_vehicle_id || undefined }));
       }
       setIsModalOpen(false);
       load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "No se pudo guardar el conductor.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAnonymize = async () => {
+    if (!token || !editing) return;
+    const question =
+      `Se borrarán de forma definitiva el nombre, la licencia y el teléfono de ${editing.full_name}. ` +
+      "Sus viajes y gastos se conservarán, pero ya no se podrá saber quién los hizo. " +
+      "Esta acción no se puede deshacer. ¿Continuar?";
+    if (!window.confirm(question)) return;
+    setIsSubmitting(true);
+    setFormError(null);
+    try {
+      await fleetApi.anonymizeDriver(token, editing.id);
+      setIsModalOpen(false);
+      load();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "No se pudieron suprimir los datos.");
     } finally {
       setIsSubmitting(false);
     }
@@ -199,7 +221,12 @@ function DriversPage() {
             <tbody>
               {drivers.map((d) => (
                 <tr key={d.id}>
-                  <td>{d.full_name}</td>
+                  <td>
+                    {d.full_name}
+                    {d.anonymized_at && (
+                      <span className={styles.qrLastUsed}>Datos suprimidos el {formatDate(d.anonymized_at)}</span>
+                    )}
+                  </td>
                   <td className="mono">{d.license_number}</td>
                   <td>{d.license_type ?? "—"}</td>
                   <td className="mono">{d.phone ?? "—"}</td>
@@ -215,18 +242,24 @@ function DriversPage() {
                   </td>
                   {isAdmin && (
                     <td className={styles.actionsCell}>
-                      <button type="button" className={styles.editLink} onClick={() => openEdit(d)}>
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.editLink}
-                        onClick={() => openManageQr(d)}
-                        title="Generar, renovar o revocar el código QR de despacho"
-                      >
-                        <QrCode size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-                        Gestionar QR
-                      </button>
+                      {d.anonymized_at ? (
+                        <span className={styles.qrLastUsed}>Sin acciones: datos suprimidos</span>
+                      ) : (
+                        <>
+                          <button type="button" className={styles.editLink} onClick={() => openEdit(d)}>
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.editLink}
+                            onClick={() => openManageQr(d)}
+                            title="Generar, renovar o revocar el código QR de despacho"
+                          >
+                            <QrCode size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+                            Gestionar QR
+                          </button>
+                        </>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -256,7 +289,6 @@ function DriversPage() {
               <input
                 id="license_number"
                 value={form.license_number}
-                disabled={Boolean(editing)}
                 onChange={(e) => setForm({ ...form, license_number: e.target.value })}
                 required
               />
@@ -265,12 +297,18 @@ function DriversPage() {
             <div className={styles.row2}>
               <div className={styles.field}>
                 <label htmlFor="license_type">Tipo de licencia</label>
-                <input
+                <select
                   id="license_type"
                   value={form.license_type}
                   onChange={(e) => setForm({ ...form, license_type: e.target.value })}
-                  placeholder="Tipo E"
-                />
+                >
+                  <option value="">Sin especificar</option>
+                  {licenseTypes.map((t) => (
+                    <option key={t.code} value={t.code}>
+                      {t.code} — {t.description}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={styles.field}>
                 <label htmlFor="phone">Teléfono</label>
@@ -287,7 +325,7 @@ function DriversPage() {
                 <label htmlFor="assigned_vehicle_id">Vehículo asignado (para el portal de despacho)</label>
                 <select
                   id="assigned_vehicle_id"
-                  value={form.assigned_vehicle_id}
+                  value={form.assigned_vehicle_id ?? ""}
                   onChange={(e) => setForm({ ...form, assigned_vehicle_id: e.target.value })}
                 >
                   <option value="">Sin asignar</option>
@@ -317,6 +355,19 @@ function DriversPage() {
                 {isSubmitting ? "Guardando…" : "Guardar"}
               </button>
             </div>
+
+            {editing && (
+              <div className={styles.dangerZone}>
+                <p className={styles.dangerText}>
+                  <strong>Suprimir datos personales (LOPDP).</strong> Borra el nombre, la licencia y el teléfono, quita
+                  su código QR y lo deja inactivo. Los viajes y gastos se conservan sin identificarlo. No se puede
+                  deshacer.
+                </p>
+                <button type="button" className={styles.dangerButton} onClick={handleAnonymize} disabled={isSubmitting}>
+                  Suprimir datos
+                </button>
+              </div>
+            )}
           </form>
         </Modal>
       )}

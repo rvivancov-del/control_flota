@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.analytics.router import router as analytics_router
 from app.despacho.router import router as despacho_router
 from app.drivers.router import router as drivers_router
+from app.expenses.router import query_router as expenses_query_router
 from app.expenses.router import router as expenses_router
 from app.maintenance.router import router as maintenance_router
 from app.trips.router import router as trips_router
@@ -28,6 +29,7 @@ app.include_router(vehicles_router)
 app.include_router(drivers_router)
 app.include_router(trips_router)
 app.include_router(expenses_router)
+app.include_router(expenses_query_router)
 app.include_router(maintenance_router)
 app.include_router(analytics_router)
 app.include_router(despacho_router)
