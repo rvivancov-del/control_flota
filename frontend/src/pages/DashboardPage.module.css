@@ -511,3 +511,159 @@
   color: var(--ink);
   flex-basis: 100%;
 }
+
+/* Fase 3 — modelo de costos: interruptor de IVA y estructura de costos */
+.ivaToggle {
+  display: flex;
+  gap: 0.2rem;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem;
+}
+
+.ivaButton {
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  padding: 0.4rem 0.75rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.ivaButtonActive {
+  background: var(--brand-navy);
+  color: #fff;
+}
+
+.ivaNote {
+  margin: -0.6rem 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+
+.percentHint {
+  display: flex;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.notice {
+  background: var(--warning-soft);
+  color: var(--ink);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0 0 1rem;
+}
+
+.notice a {
+  color: var(--brand-navy);
+  font-weight: 700;
+}
+
+.costStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.costStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+}
+
+.costStatLabel {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.costStatValue {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.compTable {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+}
+
+.compRow {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.4fr) minmax(6rem, 2fr) 6.5rem 6rem 8.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.1rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.86rem;
+  min-width: 40rem;
+}
+
+.compHead {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+.compNum {
+  text-align: right;
+}
+
+.compBarTrack {
+  height: 0.55rem;
+  background: var(--surface-alt);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.compBarFill {
+  display: block;
+  height: 100%;
+  background: var(--brand-accent);
+  border-radius: 999px;
+}
+
+.compFootnote {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+
+.method {
+  margin-top: 1rem;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.method summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--brand-navy);
+}
+
+.method ul {
+  margin: 0.6rem 0 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  line-height: 1.45;
+}

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.analytics.router import router as analytics_router
 from app.core.config_guard import assert_secure_configuration
+from app.costs.router import router as costs_router
 from app.despacho.router import router as despacho_router
 from app.drivers.router import router as drivers_router
 from app.expenses.router import query_router as expenses_query_router
@@ -36,6 +37,7 @@ app.include_router(expenses_router)
 app.include_router(expenses_query_router)
 app.include_router(maintenance_router)
 app.include_router(analytics_router)
+app.include_router(costs_router)
 app.include_router(despacho_router)
 
 

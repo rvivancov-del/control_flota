@@ -8,10 +8,12 @@ from decimal import Decimal
 from typing import Optional
 
 from app.core.fleet_client import FleetClient
-from app.dashboards import ahp, alert_policy
+from app.dashboards import ahp, alert_policy, cost_model, iva_config
 from app.dashboards.schemas import (
     AhpConfigInfo,
     AhpCriteriaWeights,
+    CostCategoryLine,
+    CostStructure,
     DashboardSummary,
     DriverExpenseBreakdown,
     DriverSummary,
@@ -42,6 +44,53 @@ _EXPENSE_FIELD = {
 
 VALID_CATEGORIES = {"combustible", "peaje", "alimentacion", "mantenimiento"}
 
+ZERO = Decimal("0")
+_q2 = cost_model.q2
+
+
+def _iva_mode(iva_mode: Optional[str]) -> str:
+    """Modo de IVA pedido, o el predeterminado de iva_config.json ('bruto')."""
+    mode = iva_mode or iva_config.CONFIG.default_mode
+    if mode not in iva_config.MODES:
+        raise ValueError(f"iva_mode debe ser uno de {iva_config.MODES}, se recibió {mode!r}")
+    return mode
+
+
+def _convert(item: str, amount: Decimal, mode: str) -> Decimal:
+    """Monto de un rubro en el modo de IVA pedido (sin redondear)."""
+    return cost_model.apply_iva({item: amount}, iva_config.CONFIG.rates, mode)[item]
+
+
+def _cost_structure(ind: cost_model.Indicators, mode: str) -> CostStructure:
+    """Indicadores de cost_model → esquema de respuesta, con los redondeos de presentación
+    (montos a centavos, costos por km a 4 decimales)."""
+    q4 = cost_model.q4
+    return CostStructure(
+        iva_mode=mode,
+        fixed_included=ind.fixed_included,
+        distance_km=ind.distance_km,
+        variable_cost=_q2(ind.variable_cost),
+        fixed_cost=_q2(ind.fixed_cost),
+        total_cost=_q2(ind.total_cost),
+        cv_per_km=q4(ind.cv_per_km),
+        cf_per_km=q4(ind.cf_per_km),
+        ct_per_km=q4(ind.ct_per_km),
+        revenue=_q2(ind.revenue),
+        revenue_per_km=q4(ind.revenue_per_km),
+        revenue_coverage_pct=_q2(ind.revenue_coverage_pct),
+        profit=_q2(ind.profit),
+        profit_per_km=q4(ind.profit_per_km),
+        margin_pct=_q2(ind.margin_pct),
+        contribution_margin=_q2(ind.contribution_margin),
+        personnel_cost=_q2(ind.personnel_cost),
+        labour_productivity=_q2(ind.labour_productivity),
+        return_on_personnel_cost_pct=_q2(ind.return_on_personnel_cost_pct),
+        composition=[
+            CostCategoryLine(key=c.key, label=c.label, amount=_q2(c.amount), per_km=q4(c.per_km), share_pct=_q2(c.share_pct))
+            for c in ind.composition
+        ],
+    )
+
 
 def _date_in_range(value: date, date_from: Optional[date], date_to: Optional[date]) -> bool:
     """True si value cae dentro de [date_from, date_to] (límites abiertos si son None)."""
@@ -65,96 +114,128 @@ def _maintenance_reference_date(record: dict) -> Optional[date]:
     return _parse_iso_date(raw) if "T" in raw else date.fromisoformat(raw[:10])
 
 
+
 def build_dashboard_summary(
     client: FleetClient,
     vehicle_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     category: Optional[str] = None,
+    iva_mode: Optional[str] = None,
+    include_fixed: bool = False,
 ) -> DashboardSummary:
-    """RF-15 + RF-16: agrega, por vehículo, el costo total y su composición
-    (combustible, peajes, alimentación, mantenimiento) dentro del período dado.
+    """RF-15 + RF-16 + modelo de costos de la Fase 3.
 
-    Toda la suma ocurre en SQL dentro de fleet-core-service (endpoints
-    /analytics/*) — este servicio hace 5 llamadas en total sin importar
-    cuántos viajes o gastos haya en el período (antes: una llamada HTTP por
-    cada viaje, lo que con un año de historia tardaba más de 10 segundos).
+    Por vehículo y para la flota entrega el gasto operativo (costos variables), su composición y, en
+    `costs` / `fleet_costs`, el modelo completo: Ct = Cv + Cf, costos, ingreso y utilidad por km,
+    margen, LP, ROP y la estructura en ocho categorías (ver cost_model.py).
 
-    `category` (opcional) acota el costo total mostrado (KPI y columna "Total")
-    a un solo tipo de gasto — el desglose completo se calcula siempre, así el
-    tablero sigue mostrando los 4 parámetros aunque el total esté filtrado."""
+    Toda la suma ocurre en SQL dentro de fleet-core-service (endpoints /analytics/*): pocas llamadas
+    sin importar cuántos viajes o gastos haya en el período.
+
+    - `category` acota solo `total_cost` (KPI y columna "Total"); el desglose y los indicadores
+      (margen, utilidad) NO cambian con el filtro: antes el margen se calculaba contra el costo filtrado.
+    - `include_fixed` (solo el rol admin) suma los costos fijos por vehículo y el personal, este último
+      repartido entre vehículos según los km de cada conductor. Requiere `date_from` y `date_to`,
+      porque los costos fijos se prorratean por días.
+    - `iva_mode`: 'bruto' (montos pagados) o 'neto' (sin IVA); ver iva_config.py."""
+    mode = _iva_mode(iva_mode)
+    rates = iva_config.CONFIG.rates
     category = category if category in VALID_CATEGORIES else None
-    vehicles = client.list_vehicles()
-    if vehicle_id:
-        vehicles = [v for v in vehicles if v["id"] == vehicle_id]
+    all_vehicles = client.list_vehicles()
+    vehicles = [v for v in all_vehicles if v["id"] == vehicle_id] if vehicle_id else all_vehicles
     vehicle_ids = {v["id"] for v in vehicles}
+    fixed_ok = include_fixed and date_from is not None and date_to is not None
 
     alerts_by_vehicle: dict[str, int] = {}
     for alert in client.list_maintenance_alerts():
         alerts_by_vehicle[alert["vehicle_id"]] = alerts_by_vehicle.get(alert["vehicle_id"], 0) + 1
 
-    breakdown_by_vehicle: dict[str, ExpenseBreakdown] = defaultdict(ExpenseBreakdown)
+    # Montos por vehículo y rubro, tal como se pagaron (con IVA).
+    gross: dict[str, dict[str, Decimal]] = defaultdict(lambda: dict.fromkeys(cost_model.VARIABLE_ITEMS, ZERO))
+    fuel_liters_by_vehicle: dict[str, Decimal] = defaultdict(lambda: ZERO)
     for row in client.expense_aggregate(date_from, date_to):
         vid = row["vehicle_id"]
-        if vid not in vehicle_ids:
+        if vid not in vehicle_ids or row["type"] not in _EXPENSE_FIELD:
             continue
-        field = _EXPENSE_FIELD.get(row["type"])
-        if field is not None:
-            b = breakdown_by_vehicle[vid]
-            setattr(b, field, getattr(b, field) + Decimal(str(row["amount_total"])))
-
+        gross[vid][row["type"]] += Decimal(str(row["amount_total"]))
+        if row["type"] == "combustible":
+            fuel_liters_by_vehicle[vid] += Decimal(str(row["liters_total"]))
     for row in client.maintenance_aggregate(date_from, date_to):
-        vid = row["vehicle_id"]
-        if vid not in vehicle_ids:
-            continue
-        breakdown_by_vehicle[vid].mantenimiento += Decimal(str(row["cost_total"]))
+        if row["vehicle_id"] in vehicle_ids:
+            gross[row["vehicle_id"]]["mantenimiento"] += Decimal(str(row["cost_total"]))
 
     trips_by_vehicle: dict[str, int] = defaultdict(int)
     distance_by_vehicle: dict[str, int] = defaultdict(int)
-    revenue_by_vehicle: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    revenue_by_vehicle: dict[str, Decimal] = defaultdict(lambda: ZERO)
+    revenue_km_by_vehicle: dict[str, int] = defaultdict(int)
     active_days_by_vehicle: dict[str, set] = defaultdict(set)
+    # km de cada conductor con cada vehículo (de TODA la flota): base para repartir el personal.
+    km_by_driver_vehicle: dict[tuple[str, str], int] = defaultdict(int)
     for row in client.trip_aggregate(date_from, date_to):
         vid = row["vehicle_id"]
+        km_by_driver_vehicle[(row["driver_id"], vid)] += row["distance_km"]
         if vid not in vehicle_ids:
             continue
         trips_by_vehicle[vid] += row["trip_count"]
         distance_by_vehicle[vid] += row["distance_km"]
         revenue_by_vehicle[vid] += Decimal(str(row["revenue_total"]))
+        revenue_km_by_vehicle[vid] += row.get("revenue_distance_km", row["distance_km"])
         active_days_by_vehicle[vid].add(row["trip_date"])
 
-    fuel_liters_by_vehicle: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-    for row in client.expense_aggregate(date_from, date_to):
-        vid = row["vehicle_id"]
-        if vid not in vehicle_ids or row["type"] != "combustible":
-            continue
-        fuel_liters_by_vehicle[vid] += Decimal(str(row["liters_total"]))
+    unallocated = ZERO
+    if fixed_ok:
+        for row in client.fixed_cost_accrual(date_from, date_to):
+            if row["vehicle_id"] in vehicle_ids:
+                items = gross[row["vehicle_id"]]
+                items[row["category"]] = items.get(row["category"], ZERO) + Decimal(str(row["amount"]))
+        personnel_by_driver: dict[str, Decimal] = defaultdict(lambda: ZERO)
+        for row in client.personnel_cost_accrual(date_from, date_to):
+            personnel_by_driver[row["driver_id"]] += Decimal(str(row["amount"]))
+        allocated, unallocated = cost_model.allocate_personnel(dict(personnel_by_driver), dict(km_by_driver_vehicle))
+        for vid, amount in allocated.items():
+            if vid in vehicle_ids:
+                gross[vid]["personal"] = amount
+        if vehicle_id:
+            unallocated = ZERO  # con un solo vehículo elegido no se muestra lo que no es de ninguno
 
     period_days = (date_to - date_from).days + 1 if date_from and date_to else None
 
     summaries: list[VehicleSummary] = []
-    fleet_total = Decimal("0")
-    fleet_revenue = Decimal("0")
+    net_by_vehicle: dict[str, dict[str, Decimal]] = {}
+    fleet_total = ZERO
+    fleet_revenue = ZERO
+    fleet_revenue_km = 0
+    fleet_distance = 0
     any_revenue = False
 
     for vehicle in vehicles:
         vid = vehicle["id"]
-        breakdown = breakdown_by_vehicle.get(vid, ExpenseBreakdown())
-        total_cost = (
-            getattr(breakdown, category)
-            if category
-            else breakdown.combustible + breakdown.peaje + breakdown.alimentacion + breakdown.mantenimiento
+        net = cost_model.apply_iva(gross[vid], rates, mode)
+        net_by_vehicle[vid] = net
+        breakdown = ExpenseBreakdown(
+            combustible=_q2(net["combustible"]),
+            peaje=_q2(net["peaje"]),
+            alimentacion=_q2(net["alimentacion"]),
+            mantenimiento=_q2(net["mantenimiento"]),
         )
+        operating_cost = breakdown.combustible + breakdown.peaje + breakdown.alimentacion + breakdown.mantenimiento
+        total_cost = getattr(breakdown, category) if category else operating_cost
         fleet_total += total_cost
 
-        revenue = revenue_by_vehicle.get(vid, Decimal("0"))
+        revenue = revenue_by_vehicle.get(vid, ZERO)
         has_revenue = revenue > 0
+        distance = distance_by_vehicle.get(vid, 0)
+        fleet_distance += distance
         if has_revenue:
             any_revenue = True
             fleet_revenue += revenue
-        margin = (revenue - total_cost) if has_revenue else None
+            fleet_revenue_km += revenue_km_by_vehicle.get(vid, 0)
 
-        distance = distance_by_vehicle.get(vid, 0)
-        fuel_liters = fuel_liters_by_vehicle.get(vid, Decimal("0"))
+        indicators = cost_model.compute_indicators(
+            net, distance, revenue if has_revenue else None, revenue_km_by_vehicle.get(vid, 0), include_fixed=fixed_ok
+        )
+        fuel_liters = fuel_liters_by_vehicle.get(vid, ZERO)
         fuel_efficiency = (fuel_liters / distance * 100) if distance > 0 and fuel_liters > 0 else None
 
         active_days = len(active_days_by_vehicle.get(vid, set()))
@@ -175,35 +256,56 @@ def build_dashboard_summary(
                 breakdown=breakdown,
                 pending_maintenance_alerts=alerts_by_vehicle.get(vid, 0),
                 revenue=revenue if has_revenue else None,
-                margin=margin,
+                # Margen de contribución: ingreso − costos variables, sin importar el filtro de categoría.
+                margin=_q2(indicators.contribution_margin),
                 fuel_liters=fuel_liters,
                 fuel_efficiency_l_100km=fuel_efficiency,
                 active_days=active_days if period_days else None,
                 period_days=period_days,
                 utilization_pct=utilization_pct,
+                costs=_cost_structure(indicators, mode),
             )
         )
+
+    fleet_net = cost_model.sum_items(net_by_vehicle.values())
+    if fixed_ok and unallocated > 0:
+        fleet_net["personal"] = fleet_net.get("personal", ZERO) + _convert("personal", unallocated, mode)
+    fleet_indicators = cost_model.compute_indicators(
+        fleet_net, fleet_distance, fleet_revenue if any_revenue else None, fleet_revenue_km, include_fixed=fixed_ok
+    )
 
     return DashboardSummary(
         vehicles=summaries,
         fleet_total_cost=fleet_total,
         fleet_total_revenue=fleet_revenue if any_revenue else None,
-        fleet_total_margin=(fleet_revenue - fleet_total) if any_revenue else None,
+        fleet_total_margin=_q2(fleet_indicators.contribution_margin),
+        iva_mode=mode,
+        fleet_costs=_cost_structure(fleet_indicators, mode),
+        fixed_costs_omitted_reason=None if fixed_ok else ("rol" if not include_fixed else "sin_periodo"),
+        unallocated_personnel_cost=_q2(_convert("personal", unallocated, mode)) if fixed_ok and not vehicle_id else None,
     )
+
 
 
 def build_route_summary(
     client: FleetClient,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    iva_mode: Optional[str] = None,
 ) -> RouteSummaryResponse:
     """Costo y distancia por ruta — el contexto de dificultad que falta para
     leer con justicia el ranking de costo/km por conductor: un número alto
     puede ser mala conducción, o puede ser que le tocaron las rutas caras."""
+    mode = _iva_mode(iva_mode)
     routes: list[RouteSummary] = []
     for row in client.route_aggregate(date_from, date_to):
         distance = row["avg_distance_km"]
-        cost = Decimal(str(row["cost_total"]))
+        if mode == "bruto":
+            cost = Decimal(str(row["cost_total"]))
+        else:
+            by_type = {item: Decimal(str(row.get(f"cost_{item}", 0))) for item in ("combustible", "peaje", "alimentacion")}
+            cost = sum(cost_model.apply_iva(by_type, iva_config.CONFIG.rates, mode).values(), ZERO)
+        cost = _q2(cost)
         cost_per_km = (cost / row["trip_count"] / distance) if distance > 0 and row["trip_count"] > 0 else None
         routes.append(
             RouteSummary(
@@ -216,7 +318,8 @@ def build_route_summary(
             )
         )
     routes.sort(key=lambda r: r.cost_per_km or Decimal("0"), reverse=True)
-    return RouteSummaryResponse(routes=routes)
+    return RouteSummaryResponse(routes=routes, iva_mode=mode)
+
 
 
 def build_driver_summary(
@@ -224,28 +327,39 @@ def build_driver_summary(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     category: Optional[str] = None,
+    iva_mode: Optional[str] = None,
+    include_fixed: bool = False,
 ) -> DriverSummaryResponse:
     """Mismo análisis que build_dashboard_summary pero por conductor en vez de
     por vehículo — responde "¿quién genera más gasto operativo, y qué tan
     eficiente es por kilómetro conducido?". Sin mantenimiento: el
-    mantenimiento es del vehículo, no depende de quién lo conducía."""
+    mantenimiento es del vehículo, no depende de quién lo conducía.
+
+    Solo para el admin (`include_fixed`) y con período: el costo de personal del conductor y su
+    productividad laboral LP = ingreso / personal (Kutac et al., 2022). Los sueldos son información
+    sensible: los demás roles no los ven. `margin` es el margen de contribución (ingreso − gasto
+    operativo del conductor) y ya no depende del filtro de categoría."""
+    mode = _iva_mode(iva_mode)
+    rates = iva_config.CONFIG.rates
     category = category if category in VALID_CATEGORIES and category != "mantenimiento" else None
     drivers = client.list_drivers()
     driver_ids = {d["id"] for d in drivers}
+    personnel_ok = include_fixed and date_from is not None and date_to is not None
 
-    breakdown_by_driver: dict[str, DriverExpenseBreakdown] = defaultdict(DriverExpenseBreakdown)
+    items = ("combustible", "peaje", "alimentacion")
+    gross: dict[str, dict[str, Decimal]] = defaultdict(lambda: dict.fromkeys(items, ZERO))
+    fuel_liters_by_driver: dict[str, Decimal] = defaultdict(lambda: ZERO)
     for row in client.expense_aggregate(date_from, date_to):
         did = row["driver_id"]
-        if did not in driver_ids:
+        if did not in driver_ids or row["type"] not in _EXPENSE_FIELD:
             continue
-        field = _EXPENSE_FIELD.get(row["type"])
-        if field is not None:
-            b = breakdown_by_driver[did]
-            setattr(b, field, getattr(b, field) + Decimal(str(row["amount_total"])))
+        gross[did][row["type"]] += Decimal(str(row["amount_total"]))
+        if row["type"] == "combustible":
+            fuel_liters_by_driver[did] += Decimal(str(row["liters_total"]))
 
     trips_by_driver: dict[str, int] = defaultdict(int)
     distance_by_driver: dict[str, int] = defaultdict(int)
-    revenue_by_driver: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    revenue_by_driver: dict[str, Decimal] = defaultdict(lambda: ZERO)
     for row in client.trip_aggregate(date_from, date_to):
         did = row["driver_id"]
         if did not in driver_ids:
@@ -254,32 +368,35 @@ def build_driver_summary(
         distance_by_driver[did] += row["distance_km"]
         revenue_by_driver[did] += Decimal(str(row["revenue_total"]))
 
-    fuel_liters_by_driver: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-    for row in client.expense_aggregate(date_from, date_to):
-        did = row["driver_id"]
-        if did not in driver_ids or row["type"] != "combustible":
-            continue
-        fuel_liters_by_driver[did] += Decimal(str(row["liters_total"]))
+    personnel_by_driver: dict[str, Decimal] = defaultdict(lambda: ZERO)
+    if personnel_ok:
+        for row in client.personnel_cost_accrual(date_from, date_to):
+            personnel_by_driver[row["driver_id"]] += Decimal(str(row["amount"]))
 
     summaries: list[DriverSummary] = []
-    fleet_total = Decimal("0")
+    fleet_total = ZERO
 
     for driver in drivers:
         did = driver["id"]
-        breakdown = breakdown_by_driver.get(did, DriverExpenseBreakdown())
-        total_cost = getattr(breakdown, category) if category else (
-            breakdown.combustible + breakdown.peaje + breakdown.alimentacion
+        net = cost_model.apply_iva(gross[did], rates, mode)
+        breakdown = DriverExpenseBreakdown(
+            combustible=_q2(net["combustible"]), peaje=_q2(net["peaje"]), alimentacion=_q2(net["alimentacion"])
         )
+        operating_cost = breakdown.combustible + breakdown.peaje + breakdown.alimentacion
+        total_cost = getattr(breakdown, category) if category else operating_cost
         distance = distance_by_driver.get(did, 0)
         cost_per_km = (total_cost / distance) if distance > 0 else None
         fleet_total += total_cost
 
-        revenue = revenue_by_driver.get(did, Decimal("0"))
+        revenue = revenue_by_driver.get(did, ZERO)
         has_revenue = revenue > 0
-        margin = (revenue - total_cost) if has_revenue else None
+        margin = (revenue - operating_cost) if has_revenue else None
 
-        fuel_liters = fuel_liters_by_driver.get(did, Decimal("0"))
+        fuel_liters = fuel_liters_by_driver.get(did, ZERO)
         fuel_efficiency = (fuel_liters / distance * 100) if distance > 0 and fuel_liters > 0 else None
+
+        personnel = _convert("personal", personnel_by_driver[did], mode) if did in personnel_by_driver else None
+        labour_productivity = revenue / personnel if (has_revenue and personnel) else None
 
         summaries.append(
             DriverSummary(
@@ -294,10 +411,14 @@ def build_driver_summary(
                 margin=margin,
                 fuel_liters=fuel_liters,
                 fuel_efficiency_l_100km=fuel_efficiency,
+                personnel_cost=_q2(personnel),
+                labour_productivity=_q2(labour_productivity),
             )
         )
 
-    return DriverSummaryResponse(drivers=summaries, fleet_total_cost=fleet_total)
+    return DriverSummaryResponse(
+        drivers=summaries, fleet_total_cost=fleet_total, iva_mode=mode, personnel_included=personnel_ok
+    )
 
 
 def _period_bucket(value: date, period: str) -> tuple[str, date]:
@@ -314,6 +435,7 @@ def _period_bucket(value: date, period: str) -> tuple[str, date]:
     return start.strftime("%b %Y"), start
 
 
+
 def build_cost_trend(
     client: FleetClient,
     period: str = "month",
@@ -321,53 +443,52 @@ def build_cost_trend(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     category: Optional[str] = None,
+    iva_mode: Optional[str] = None,
 ) -> TrendResponse:
     """RF-16: costo total por período (semana, mes o año) — la vista de
     tendencia que un ERP de flota (p. ej. Odoo Fleet) reporta junto al total
     acumulado, en vez de un solo número estático.
 
-    `category` (opcional) acota `total_cost` de cada punto al tipo de gasto
-    seleccionado en el tablero, igual que en build_dashboard_summary."""
+    Es la tendencia del gasto operativo (costos variables): los costos fijos se prorratean por días y
+    no aportan forma a la curva. `category` (opcional) acota `total_cost` de cada punto al tipo de
+    gasto seleccionado en el tablero, igual que en build_dashboard_summary."""
+    mode = _iva_mode(iva_mode)
+    rates = iva_config.CONFIG.rates
     category = category if category in VALID_CATEGORIES else None
     vehicles = client.list_vehicles()
     if vehicle_id:
         vehicles = [v for v in vehicles if v["id"] == vehicle_id]
     vehicle_ids = {v["id"] for v in vehicles}
 
-    buckets: dict[str, ExpenseBreakdown] = defaultdict(ExpenseBreakdown)
+    buckets: dict[str, dict[str, Decimal]] = defaultdict(lambda: dict.fromkeys(cost_model.VARIABLE_ITEMS, ZERO))
     bucket_start: dict[str, date] = {}
 
     for row in client.expense_aggregate(date_from, date_to):
-        if row["vehicle_id"] not in vehicle_ids:
-            continue
-        field = _EXPENSE_FIELD.get(row["type"])
-        if field is None:
+        if row["vehicle_id"] not in vehicle_ids or row["type"] not in _EXPENSE_FIELD:
             continue
         label, start = _period_bucket(date.fromisoformat(row["expense_date"]), period)
         bucket_start.setdefault(label, start)
-        b = buckets[label]
-        setattr(b, field, getattr(b, field) + Decimal(str(row["amount_total"])))
+        buckets[label][row["type"]] += Decimal(str(row["amount_total"]))
 
     for row in client.maintenance_aggregate(date_from, date_to):
         if row["vehicle_id"] not in vehicle_ids:
             continue
         label, start = _period_bucket(date.fromisoformat(row["performed_at"]), period)
         bucket_start.setdefault(label, start)
-        buckets[label].mantenimiento += Decimal(str(row["cost_total"]))
+        buckets[label]["mantenimiento"] += Decimal(str(row["cost_total"]))
 
-    points = [
-        TrendPoint(
-            period_label=label,
-            total_cost=(
-                getattr(b, category)
-                if category
-                else b.combustible + b.peaje + b.alimentacion + b.mantenimiento
-            ),
-            breakdown=b,
+    points = []
+    for label, gross in sorted(buckets.items(), key=lambda kv: bucket_start[kv[0]]):
+        net = cost_model.apply_iva(gross, rates, mode)
+        b = ExpenseBreakdown(
+            combustible=_q2(net["combustible"]),
+            peaje=_q2(net["peaje"]),
+            alimentacion=_q2(net["alimentacion"]),
+            mantenimiento=_q2(net["mantenimiento"]),
         )
-        for label, b in sorted(buckets.items(), key=lambda kv: bucket_start[kv[0]])
-    ]
-    return TrendResponse(points=points)
+        total = getattr(b, category) if category else b.combustible + b.peaje + b.alimentacion + b.mantenimiento
+        points.append(TrendPoint(period_label=label, period_start=bucket_start[label], total_cost=total, breakdown=b))
+    return TrendResponse(points=points, iva_mode=mode)
 
 
 def build_expense_records(
@@ -376,6 +497,7 @@ def build_expense_records(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     category: Optional[str] = None,
+    iva_mode: Optional[str] = None,
 ) -> list[ExpenseRecord]:
     """Insumo del histograma y la dispersión costo-vs-kilometraje del
     tablero. Los gastos de viaje (combustible/peaje/alimentación) vienen
@@ -384,6 +506,7 @@ def build_expense_records(
     atípicos, sin repetir el problema de una llamada HTTP por recibo. El
     mantenimiento sigue viniendo registro por registro (ya es barato: una
     llamada por vehículo, no por evento)."""
+    mode = _iva_mode(iva_mode)
     category = category if category in VALID_CATEGORIES else None
     vehicles = client.list_vehicles()
     if vehicle_id:
@@ -412,7 +535,7 @@ def build_expense_records(
                 ExpenseRecord(
                     vehicle_plate=plate_by_id[vid],
                     category=row["type"],
-                    amount=Decimal(str(row["amount_total"])),
+                    amount=_q2(_convert(row["type"], Decimal(str(row["amount_total"])), mode)),
                     mileage_km=mileage_by_key.get((vid, row["expense_date"])),
                     occurred_at=row["expense_date"],
                 )
@@ -431,7 +554,7 @@ def build_expense_records(
                     ExpenseRecord(
                         vehicle_plate=vehicle["plate"],
                         category="mantenimiento",
-                        amount=Decimal(str(record["cost"])),
+                        amount=_q2(_convert("mantenimiento", Decimal(str(record["cost"])), mode)),
                         mileage_km=mileage,
                         occurred_at=record.get("performed_at") or record.get("created_at"),
                     )
@@ -445,10 +568,12 @@ def build_maintenance_report(
     vehicle_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    iva_mode: Optional[str] = None,
 ) -> list[MaintenanceReportItem]:
     """RF-17: mantenimientos (pendientes y completados) dentro del período,
     con su costo — el detalle que el resumen de costos no desglosa registro
     por registro."""
+    mode = _iva_mode(iva_mode)
     vehicles = client.list_vehicles()
     if vehicle_id:
         vehicles = [v for v in vehicles if v["id"] == vehicle_id]
@@ -467,19 +592,22 @@ def build_maintenance_report(
                     status=record["status"],
                     scheduled_mileage_km=record.get("scheduled_mileage_km"),
                     performed_mileage_km=record.get("performed_mileage_km"),
-                    cost=record.get("cost"),
+                    cost=_q2(_convert("mantenimiento", Decimal(str(record["cost"])), mode)) if record.get("cost") else None,
                     performed_at=record.get("performed_at"),
                 )
             )
     return items
 
 
-def build_maintenance_status(client: FleetClient, vehicle_id: Optional[str] = None) -> MaintenanceStatus:
+def build_maintenance_status(
+    client: FleetClient, vehicle_id: Optional[str] = None, iva_mode: Optional[str] = None
+) -> MaintenanceStatus:
     """Bloque de 'acción requerida' del tablero: qué mantenimientos pendientes
     son urgentes (por kilometraje restante) y si la flota se mantiene de
     forma preventiva o a la fuerza (correctivo) — no acota por fecha, porque
     la urgencia se mide contra el kilometraje actual del vehículo, no contra
     un período de tiempo."""
+    mode = _iva_mode(iva_mode)
     vehicles = client.list_vehicles()
     if vehicle_id:
         vehicles = [v for v in vehicles if v["id"] == vehicle_id]
@@ -494,7 +622,7 @@ def build_maintenance_status(client: FleetClient, vehicle_id: Optional[str] = No
                 if record.get("cost"):
                     entry = mix_by_category[record["category"]]
                     entry["count"] += 1
-                    entry["total_cost"] += Decimal(str(record["cost"]))
+                    entry["total_cost"] += _q2(_convert("mantenimiento", Decimal(str(record["cost"])), mode))
                 continue
             if record["status"] != "pendiente":
                 continue

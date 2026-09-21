@@ -3,6 +3,7 @@
 import { apiClient } from "./apiClient";
 import type { DashboardSummary } from "../types/dashboard";
 import type {
+  CostModelInfo,
   DriverSummaryResponse,
   ExpenseRecord,
   MaintenancePriorityResponse,
@@ -26,6 +27,7 @@ function buildParams(filters: ReportFilters): URLSearchParams {
   if (filters.date_from) params.set("date_from", filters.date_from);
   if (filters.date_to) params.set("date_to", filters.date_to);
   if (filters.category) params.set("category", filters.category);
+  if (filters.iva_mode) params.set("iva_mode", filters.iva_mode);
   return params;
 }
 
@@ -68,6 +70,9 @@ export const reportsApi = {
 
   routes: (token: string, filters: ReportFilters = {}) =>
     apiClient.get<RouteSummaryResponse>(`/reports/dashboard/routes${queryString(filters)}`, token),
+
+  /** Metodología del modelo de costos: categorías, fórmulas, fuentes y tarifas de IVA con su estado. */
+  costModel: (token: string) => apiClient.get<CostModelInfo>("/reports/dashboard/cost-model", token),
 
   exportUrl: (filters: ReportFilters = {}) => `${BASE_URL()}/reports/reports/costs.xlsx${queryString(filters)}`,
   exportPdfUrl: (filters: ReportFilters = {}) => `${BASE_URL()}/reports/reports/costs.pdf${queryString(filters)}`,

@@ -74,6 +74,15 @@ class FleetClient:
         """Costo de mantenimiento completado por (vehículo, fecha, categoría, tipo), ya sumado en SQL."""
         return self._get("/analytics/maintenance", params=self._period_params(date_from, date_to))
 
+    def fixed_cost_accrual(self, date_from: date, date_to: date) -> list[dict]:
+        """Costos fijos devengados en el período, por (vehículo, categoría), prorrateados por días.
+        Solo el rol admin puede pedirlos: con otro rol fleet-core responde 403."""
+        return self._get("/analytics/fixed-costs", params=self._period_params(date_from, date_to))
+
+    def personnel_cost_accrual(self, date_from: date, date_to: date) -> list[dict]:
+        """Costos de personal devengados en el período, por (conductor, concepto), prorrateados por días (solo admin)."""
+        return self._get("/analytics/personnel-costs", params=self._period_params(date_from, date_to))
+
     def route_aggregate(self, date_from: Optional[date] = None, date_to: Optional[date] = None) -> list[dict]:
         """Costo y distancia promedio por ruta (origen-destino), ya sumado en SQL."""
         return self._get("/analytics/routes", params=self._period_params(date_from, date_to))

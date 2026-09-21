@@ -15,7 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import { fleetApi } from "../services/fleetApi";
 import { reportsApi } from "../services/reportsApi";
 import type { Vehicle } from "../types/fleet";
-import type { DashboardSummary } from "../types/dashboard";
+import type { DashboardSummary, IvaMode } from "../types/dashboard";
 import type { MaintenanceReportItem, ReportFilters, TrendResponse } from "../types/reports";
 import styles from "./ReportsPage.module.css";
 
@@ -55,6 +55,8 @@ function ReportsPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({});
   const [period, setPeriod] = useState<"week" | "month">("month");
+  // Montos tal como se pagaron (con IVA) o sin IVA: mismo interruptor que el tablero.
+  const [ivaMode, setIvaMode] = useState<IvaMode>("bruto");
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [trend, setTrend] = useState<TrendResponse | null>(null);
@@ -71,10 +73,11 @@ function ReportsPage() {
     if (!token) return;
     setIsLoading(true);
     setError(null);
+    const query = { ...filters, iva_mode: ivaMode };
     Promise.all([
-      reportsApi.summary(token, filters),
-      reportsApi.trend(token, period, filters),
-      reportsApi.maintenanceReport(token, filters),
+      reportsApi.summary(token, query),
+      reportsApi.trend(token, period, query),
+      reportsApi.maintenanceReport(token, query),
     ])
       .then(([summaryData, trendData, maintenanceData]) => {
         setSummary(summaryData);
@@ -84,7 +87,7 @@ function ReportsPage() {
       .catch(() => setError("No se pudo cargar el reporte. Verifica que fleet-core-service esté disponible."))
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, period, filters.vehicle_id, filters.date_from, filters.date_to]);
+  }, [token, period, ivaMode, filters.vehicle_id, filters.date_from, filters.date_to]);
 
   const chartData = (trend?.points ?? []).map((p) => ({
     periodo: p.period_label,
@@ -136,25 +139,45 @@ function ReportsPage() {
                 onChange={(e) => setFilters({ ...filters, date_to: e.target.value || undefined })}
               />
             </div>
+            <div className={styles.filterField}>
+              <label htmlFor="iva_mode">Montos</label>
+              <select id="iva_mode" value={ivaMode} onChange={(e) => setIvaMode(e.target.value as IvaMode)}>
+                <option value="bruto">Con IVA (lo pagado)</option>
+                <option value="neto">Sin IVA (neto)</option>
+              </select>
+            </div>
             {isAdmin && (
               <div className={styles.exportRow}>
                 <button
                   type="button"
                   className={styles.exportButton}
-                  onClick={() => token && downloadAuthenticated(reportsApi.exportUrl(filters), token, "reporte_costos.xlsx")}
+                  onClick={() =>
+                    token &&
+                    downloadAuthenticated(reportsApi.exportUrl({ ...filters, iva_mode: ivaMode }), token, "reporte_costos.xlsx")
+                  }
                 >
                   Excel
                 </button>
                 <button
                   type="button"
                   className={styles.exportButtonSecondary}
-                  onClick={() => token && downloadAuthenticated(reportsApi.exportPdfUrl(filters), token, "reporte_costos.pdf")}
+                  onClick={() =>
+                    token &&
+                    downloadAuthenticated(reportsApi.exportPdfUrl({ ...filters, iva_mode: ivaMode }), token, "reporte_costos.pdf")
+                  }
                 >
                   PDF
                 </button>
               </div>
             )}
           </div>
+          {isAdmin && (
+            <p className={styles.exportHint}>
+              {filters.date_from && filters.date_to
+                ? "El archivo incluye los costos fijos y de personal prorrateados a este período (costo total, utilidad y margen)."
+                : "Elige «Desde» y «Hasta» para que el archivo incluya los costos fijos y de personal; sin período solo lleva los costos variables."}
+            </p>
+          )}
         </div>
 
         {error && <p className={styles.empty}>{error}</p>}
@@ -173,7 +196,7 @@ function ReportsPage() {
                   <th>Peajes</th>
                   <th>Alimentación</th>
                   <th>Mantenimiento</th>
-                  <th>Total</th>
+                  <th>Gasto operativo</th>
                 </tr>
               </thead>
               <tbody>

@@ -65,6 +65,17 @@ MATRIZ = {
     ("GET", "/analytics/trips"): AMBOS,
     ("GET", "/analytics/routes"): AMBOS,
     ("GET", "/analytics/maintenance"): AMBOS,
+    # Costos fijos y de personal (Fase 3): información financiera, solo admin
+    ("GET", "/analytics/fixed-costs"): ADMIN,
+    ("GET", "/analytics/personnel-costs"): ADMIN,
+    ("GET", "/fixed-costs"): ADMIN,
+    ("POST", "/fixed-costs"): ADMIN,
+    ("PATCH", "/fixed-costs/{cost_id}"): ADMIN,
+    ("DELETE", "/fixed-costs/{cost_id}"): ADMIN,
+    ("GET", "/personnel-costs"): ADMIN,
+    ("POST", "/personnel-costs"): ADMIN,
+    ("PATCH", "/personnel-costs/{cost_id}"): ADMIN,
+    ("DELETE", "/personnel-costs/{cost_id}"): ADMIN,
 }
 
 
@@ -94,7 +105,7 @@ def _token(role: str, **extra) -> dict:
 
 def _url(template: str) -> str:
     out = template
-    for name in ("vehicle_id", "driver_id", "trip_id", "expense_id", "maintenance_id"):
+    for name in ("vehicle_id", "driver_id", "trip_id", "expense_id", "maintenance_id", "cost_id"):
         out = out.replace("{" + name + "}", ID)
     assert "{" not in out, out
     return out
@@ -157,12 +168,22 @@ def test_el_operador_no_puede_administrar_catalogo_ni_qr():
     """Resumen legible de RF-03: lo que el operador NO puede hacer."""
     prohibidas = sorted(k for k, roles in MATRIZ.items() if "operador" not in roles)
     assert prohibidas == [
+        ("DELETE", "/fixed-costs/{cost_id}"),
+        ("DELETE", "/personnel-costs/{cost_id}"),
+        ("GET", "/analytics/fixed-costs"),
+        ("GET", "/analytics/personnel-costs"),
+        ("GET", "/fixed-costs"),
+        ("GET", "/personnel-costs"),
         ("PATCH", "/drivers/{driver_id}"),
+        ("PATCH", "/fixed-costs/{cost_id}"),
+        ("PATCH", "/personnel-costs/{cost_id}"),
         ("PATCH", "/vehicles/{vehicle_id}"),
         ("POST", "/drivers"),
         ("POST", "/drivers/{driver_id}/anonymize"),
         ("POST", "/drivers/{driver_id}/regenerate-qr"),
         ("POST", "/drivers/{driver_id}/revoke-qr"),
+        ("POST", "/fixed-costs"),
+        ("POST", "/personnel-costs"),
         ("POST", "/vehicles"),
     ]
 

@@ -41,8 +41,9 @@ import { useAuth } from "../context/AuthContext";
 import { fleetApi } from "../services/fleetApi";
 import { reportsApi } from "../services/reportsApi";
 import { NAV_ITEMS } from "../nav";
-import type { DashboardSummary } from "../types/dashboard";
+import type { DashboardSummary, IvaMode } from "../types/dashboard";
 import type {
+  CostModelInfo,
   DriverSummaryResponse,
   ExpenseCategory,
   ExpenseRecord,
@@ -68,7 +69,7 @@ const currencyCompact = new Intl.NumberFormat("es-EC", {
 type CategoryOption = { value: ExpenseCategory | ""; label: string; color: string };
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
-  { value: "", label: "Costo total de la flota", color: "var(--brand-navy)" },
+  { value: "", label: "Gasto operativo total", color: "var(--brand-navy)" },
   { value: "combustible", label: "Combustible", color: "var(--chart-combustible)" },
   { value: "peaje", label: "Peajes", color: "var(--chart-peaje)" },
   { value: "alimentacion", label: "Alimentación", color: "var(--chart-alimentacion)" },
@@ -93,6 +94,24 @@ function toDateInput(d: Date): string {
 }
 
 type Granularity = "week" | "month" | "year";
+
+function parseLocalDate(value: string): Date {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Días (inclusive) entre dos fechas AAAA-MM-DD. */
+function daysInclusive(from: string, to: string): number {
+  return Math.round((parseLocalDate(to).getTime() - parseLocalDate(from).getTime()) / 86_400_000) + 1;
+}
+
+/** Los primeros `days` días de un período (sin pasarse de su fin). */
+function firstDays(bounds: { date_from: string; date_to: string }, days: number): { date_from: string; date_to: string } {
+  const start = parseLocalDate(bounds.date_from);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + days - 1);
+  const cap = parseLocalDate(bounds.date_to);
+  return { date_from: bounds.date_from, date_to: toDateInput(end < cap ? end : cap) };
+}
 
 const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
   { value: "week", label: "Semana" },
@@ -186,7 +205,7 @@ const SAATY_OPTIONS = [
  * costo/tendencia, priorización de mantenimiento interactiva (AHP de 2
  * criterios) y las tablas de vehículos, conductores y rutas. */
 function DashboardPage() {
-  const { token, user } = useAuth();
+  const { token, user, isAdmin } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [records, setRecords] = useState<ExpenseRecord[]>([]);
   const [trendPoints, setTrendPoints] = useState<TrendPoint[]>([]);
@@ -198,6 +217,9 @@ function DashboardPage() {
   // Umbral 'próximo' (km) de la política única de RF-13, que decide fleet-core-service.
   const [proximoKm, setProximoKm] = useState<number | null>(null);
   const [category, setCategory] = useState<ExpenseCategory | "">("");
+  // Fase 3: montos pagados (con IVA, "bruto") o sin IVA ("neto"); metodología y estado de las tarifas.
+  const [ivaMode, setIvaMode] = useState<IvaMode>("bruto");
+  const [costModel, setCostModel] = useState<CostModelInfo | null>(null);
   const [granularity, setGranularity] = useState<Granularity>("month");
   const [periodOffset, setPeriodOffset] = useState(0);
   const [urgencyOverCost, setUrgencyOverCost] = useState(3);
@@ -207,6 +229,11 @@ function DashboardPage() {
   const isCurrentPeriod = periodOffset === 0;
   const current = periodBounds(granularity, periodOffset);
   const previous = periodBounds(granularity, periodOffset - 1);
+  // Un período en curso está a medias: se compara con los MISMOS días del período anterior, no con el anterior
+  // completo (antes, a mitad de mes la variación salía casi siempre negativa).
+  const previousComparable = isCurrentPeriod
+    ? firstDays(previous, daysInclusive(current.date_from, current.date_to))
+    : previous;
 
   useEffect(() => {
     setPeriodOffset(0);
@@ -214,9 +241,10 @@ function DashboardPage() {
 
   useEffect(() => {
     if (!token) return;
-    const filters = category ? { category, ...current } : { ...current };
-    const previousFilters = category ? { category, ...previous } : { ...previous };
-    const trendFilters = category ? { category, date_to: current.date_to } : { date_to: current.date_to };
+    const iva = { iva_mode: ivaMode };
+    const filters = category ? { category, ...current, ...iva } : { ...current, ...iva };
+    const previousFilters = category ? { category, ...previousComparable, ...iva } : { ...previousComparable, ...iva };
+    const trendFilters = category ? { category, date_to: current.date_to, ...iva } : { date_to: current.date_to, ...iva };
     let cancelled = false;
 
     const load = (showLoading: boolean) => {
@@ -225,10 +253,10 @@ function DashboardPage() {
         reportsApi.summary(token, filters),
         reportsApi.records(token, filters),
         reportsApi.trend(token, granularity, trendFilters),
-        reportsApi.maintenanceStatus(token),
+        reportsApi.maintenanceStatus(token, iva),
         reportsApi.summary(token, previousFilters),
         reportsApi.drivers(token, filters),
-        reportsApi.routes(token, current),
+        reportsApi.routes(token, { ...current, ...iva }),
       ])
         .then(([summaryData, recordsData, trendData, maintenanceData, previousData, driversData, routesData]) => {
           if (cancelled) return;
@@ -255,7 +283,19 @@ function DashboardPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [token, category, granularity, periodOffset]);
+  }, [token, category, granularity, periodOffset, ivaMode]);
+
+  // Metodología del modelo de costos (categorías, fórmulas, fuentes y estado de las tarifas de IVA).
+  useEffect(() => {
+    if (!token) return;
+    reportsApi
+      .costModel(token)
+      .then((info) => {
+        setCostModel(info);
+        setIvaMode(info.iva.modo_por_defecto);
+      })
+      .catch(() => setCostModel(null));
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -291,7 +331,7 @@ function DashboardPage() {
 
   const handleExport = async () => {
     if (!token) return;
-    const response = await fetch(reportsApi.exportUrl(category ? { category, ...current } : { ...current }), {
+    const response = await fetch(reportsApi.exportUrl({ ...current, iva_mode: ivaMode }), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) return;
@@ -339,8 +379,10 @@ function DashboardPage() {
   // realmente el gasto entre períodos pasados (coeficiente de variación) —
   // un solo número sugiere una certeza que "asumir ritmo uniforme" no tiene.
   const projectedCloseRange = useMemo(() => {
-    if (projectedClose === null || !isCurrentPeriod || trendPoints.length < MIN_PERIODS_FOR_RANGE) return null;
-    const values = trendPoints.map((p) => Number(p.total_cost));
+    // Solo períodos completos: el que está en curso (a medias) inflaría la variabilidad observada.
+    const completed = trendPoints.filter((p) => p.period_start !== null && p.period_start < current.date_from);
+    if (projectedClose === null || !isCurrentPeriod || completed.length < MIN_PERIODS_FOR_RANGE) return null;
+    const values = completed.map((p) => Number(p.total_cost));
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     if (mean === 0) return null;
     const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
@@ -350,8 +392,22 @@ function DashboardPage() {
 
   // KPI 3: costo por kilómetro de toda la flota (eficiencia)
   const fleetDistanceKm = summary?.vehicles.reduce((acc, v) => acc + v.distance_km, 0) ?? 0;
-  const costPerKm =
-    summary && fleetDistanceKm > 0 ? Number(summary.fleet_total_cost) / fleetDistanceKm : null;
+  // Fase 3: costos e indicadores del modelo completo (Ct = Cv + Cf); el operador solo recibe los variables.
+  const fleetCosts = summary?.fleet_costs ?? null;
+  const fixedIncluded = Boolean(fleetCosts?.fixed_included);
+  const numOrNull = (v: string | null | undefined) => (v == null ? null : Number(v));
+  const costPerKm = category
+    ? summary && fleetDistanceKm > 0
+      ? Number(summary.fleet_total_cost) / fleetDistanceKm
+      : null
+    : numOrNull(fixedIncluded ? fleetCosts?.ct_per_km : fleetCosts?.cv_per_km);
+  const costPerKmLabel = category
+    ? `Costo por km — ${activeOption.label}`
+    : fixedIncluded
+      ? "Costo total por kilómetro"
+      : "Costo variable por kilómetro";
+  const revenueCoverage = numOrNull(fleetCosts?.revenue_coverage_pct);
+  const noFixedCostsYet = fixedIncluded && Number(fleetCosts?.fixed_cost ?? 0) === 0;
 
   // KPI 4: mantenimientos urgentes
   const urgentAlerts = (maintenanceStatus?.alerts ?? []).filter((a) => a.urgency !== "normal");
@@ -443,13 +499,32 @@ function DashboardPage() {
               <ChevronRight size={16} />
             </button>
           </div>
+          <div className={styles.ivaToggle} role="group" aria-label="Montos con o sin IVA">
+            {(["bruto", "neto"] as IvaMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={ivaMode === mode}
+                className={`${styles.ivaButton} ${ivaMode === mode ? styles.ivaButtonActive : ""}`}
+                onClick={() => setIvaMode(mode)}
+                title={mode === "bruto" ? "Montos tal como se pagaron, con IVA" : "Montos sin IVA (si la empresa lo recupera como crédito tributario)"}
+              >
+                {mode === "bruto" ? "Con IVA" : "Sin IVA"}
+              </button>
+            ))}
+          </div>
         </div>
+        <p className={styles.ivaNote}>
+          Montos {ivaMode === "bruto" ? "tal como se pagaron (con IVA)" : "sin IVA (neto)"}.
+          {costModel?.iva.estado === "pendiente_de_verificacion_contable" &&
+            " Las tarifas de IVA son provisionales: pendientes de confirmar con el contador."}
+        </p>
 
         <div className={styles.kpiRow}>
           <div className={styles.kpiCard}>
             <div className={styles.kpiHead}>
               <DollarSign size={16} className={styles.kpiIcon} />
-              <span className={styles.kpiLabel}>{category ? `Costo total — ${activeOption.label}` : "Costo total de la flota"}</span>
+              <span className={styles.kpiLabel}>{category ? `Gasto — ${activeOption.label}` : "Gasto operativo de la flota"}</span>
             </div>
             <div className={styles.kpiValue}>
               {isLoading ? "—" : currency.format(Number(summary?.fleet_total_cost ?? 0))}
@@ -468,7 +543,10 @@ function DashboardPage() {
               )}
               vs. período anterior
             </div>
-            <p className={styles.kpiExplain}>¿Gasto más o menos que en el período anterior?</p>
+            <p className={styles.kpiExplain}>
+              Costos variables: combustible, peajes, alimentación y mantenimiento.{" "}
+              {isCurrentPeriod ? "Se compara con los mismos días del período anterior." : "¿Gasto más o menos que en el período anterior?"}
+            </p>
           </div>
 
           <div className={styles.kpiCard}>
@@ -486,8 +564,8 @@ function DashboardPage() {
                 <>
                   {" "}
                   {projectedCloseRange
-                    ? `Rango probable, según cuánto varió el gasto en períodos anteriores: ${currency.format(projectedCloseRange.low)} – ${currency.format(projectedCloseRange.high)}.`
-                    : `No es un pronóstico estadístico — asume ritmo de gasto uniforme, algo poco realista en la práctica.`}
+                    ? `Estimación lineal (heurística). Rango probable, según cuánto varió el gasto en períodos completos anteriores: ${currency.format(projectedCloseRange.low)} – ${currency.format(projectedCloseRange.high)}.`
+                    : `Estimación lineal (heurística), no un pronóstico estadístico: asume ritmo de gasto uniforme, algo poco realista en la práctica.`}
                 </>
               )}
             </p>
@@ -496,11 +574,20 @@ function DashboardPage() {
           <div className={styles.kpiCard}>
             <div className={styles.kpiHead}>
               <Gauge size={16} className={styles.kpiIcon} />
-              <span className={styles.kpiLabel}>Costo por kilómetro</span>
+              <span className={styles.kpiLabel}>{costPerKmLabel}</span>
             </div>
             <div className={styles.kpiValue}>{costPerKm !== null ? `${currency.format(costPerKm)}/km` : "—"}</div>
-            <div className={styles.kpiContext}>{fleetDistanceKm.toLocaleString("es-EC")} km recorridos</div>
-            <p className={styles.kpiExplain}>Eficiencia real de la flota, sin importar cuánto se use cada unidad.</p>
+            <div className={styles.kpiContext}>
+              {fleetDistanceKm.toLocaleString("es-EC")} km recorridos
+              {!category && fixedIncluded && fleetCosts?.cv_per_km != null && fleetCosts?.cf_per_km != null
+                ? ` · variable ${currency.format(Number(fleetCosts.cv_per_km))} + fijo ${currency.format(Number(fleetCosts.cf_per_km))}`
+                : ""}
+            </div>
+            <p className={styles.kpiExplain}>
+              {category || fixedIncluded
+                ? "Eficiencia real de la flota, sin importar cuánto se use cada unidad."
+                : "Solo costos variables: el costo fijo y de personal lo ve el administrador."}
+            </p>
           </div>
 
           <div className={styles.kpiCard}>
@@ -527,16 +614,32 @@ function DashboardPage() {
           <div className={styles.kpiCard}>
             <div className={styles.kpiHead}>
               <TrendingUp size={16} className={styles.kpiIcon} />
-              <span className={styles.kpiLabel}>Margen del período</span>
+              <span className={styles.kpiLabel}>{fixedIncluded && fleetCosts?.profit != null ? "Utilidad del período" : "Margen de contribución"}</span>
             </div>
-            <div className={styles.kpiValue}>{fleetMargin !== null ? currency.format(fleetMargin) : "—"}</div>
+            <div className={styles.kpiValue}>
+              {fixedIncluded && fleetCosts?.profit != null
+                ? currency.format(Number(fleetCosts.profit))
+                : fleetMargin !== null
+                  ? currency.format(fleetMargin)
+                  : "—"}
+            </div>
             <div className={styles.kpiContext}>
-              {marginPct !== null ? `${marginPct.toFixed(0)}% del ingreso` : hasRevenueData ? "—" : "sin ingresos registrados"}
+              {fixedIncluded && fleetCosts?.margin_pct != null
+                ? `${Number(fleetCosts.margin_pct).toFixed(1)}% del ingreso`
+                : marginPct !== null
+                  ? `${marginPct.toFixed(0)}% del ingreso`
+                  : hasRevenueData
+                    ? "—"
+                    : "sin ingresos registrados"}
             </div>
             <p className={styles.kpiExplain}>
-              {hasRevenueData
-                ? "Ingreso menos costo — no solo cuánto se gastó, sino qué tan rentable fue."
-                : "Registra el ingreso al cerrar un viaje para ver el margen real, no solo el gasto."}
+              {!hasRevenueData
+                ? "Registra el ingreso al cerrar un viaje para ver el margen real, no solo el gasto."
+                : fixedIncluded && fleetCosts?.profit != null
+                  ? "Ingreso menos el costo total (variable, fijo y de personal): la utilidad que usa la literatura de transporte."
+                  : "Ingreso menos costos variables. No incluye costos fijos ni de personal, así que es mayor que la utilidad real."}
+              {revenueCoverage !== null && revenueCoverage < 100 &&
+                ` Ojo: solo el ${revenueCoverage.toFixed(0)}% de los km tiene ingreso registrado; el resultado está subestimado.`}
             </p>
           </div>
 
@@ -561,6 +664,114 @@ function DashboardPage() {
               Aproximación por actividad registrada — no es un registro real de tiempo en taller (ese evento no existe todavía en el sistema).
             </p>
           </div>
+        </div>
+
+        <div className={styles.sectionHeader}>
+          <PieChart size={18} />
+          <span className={styles.sectionLabel}>Estructura de costos — de dónde sale cada dólar por kilómetro</span>
+        </div>
+
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <span className={styles.panelTitle}>Costo del kilómetro en ocho categorías</span>
+          </div>
+          <p className={styles.panelSubtitle}>
+            Costo total Ct = costos variables Cv + costos fijos Cf (Poliak et al., 2025), repartido en las ocho categorías del
+            costo de un vehículo-km (Zysińska &amp; Menes, 2026).
+          </p>
+
+          {fleetCosts && !fixedIncluded && (
+            <p className={styles.notice}>
+              {summary?.fixed_costs_omitted_reason === "rol"
+                ? "Los costos fijos y de personal solo los ve el administrador. Aquí se muestran los costos variables."
+                : "Sin un período con fechas no se pueden prorratear los costos fijos. Aquí se muestran los costos variables."}
+            </p>
+          )}
+          {noFixedCostsYet && (
+            <p className={styles.notice}>
+              Todavía no hay costos fijos ni de personal para este período, así que el costo total es solo el variable.{" "}
+              <Link to="/costos">Registrarlos en Costos</Link>.
+            </p>
+          )}
+
+          {fleetCosts ? (
+            <>
+              <div className={styles.costStats}>
+                {(
+                  [
+                    ["Costo variable (Cv)", fleetCosts.variable_cost, false],
+                    ["Costo fijo (Cf)", fleetCosts.fixed_cost, false],
+                    ["Costo total (Ct)", fleetCosts.total_cost, false],
+                    ["Ingreso", fleetCosts.revenue, false],
+                    ["Utilidad", fleetCosts.profit, false],
+                    ["Personal (PC)", fleetCosts.personnel_cost, false],
+                  ] as const
+                )
+                  .filter(([, value]) => value !== null)
+                  .map(([label, value]) => (
+                    <div className={styles.costStat} key={label}>
+                      <span className={styles.costStatLabel}>{label}</span>
+                      <span className={styles.costStatValue}>{currency.format(Number(value))}</span>
+                    </div>
+                  ))}
+                {fixedIncluded && fleetCosts.labour_productivity != null && (
+                  <div className={styles.costStat}>
+                    <span className={styles.costStatLabel}>Productividad laboral (ingreso ÷ personal)</span>
+                    <span className={styles.costStatValue}>{Number(fleetCosts.labour_productivity).toFixed(2)}×</span>
+                  </div>
+                )}
+                {fixedIncluded && fleetCosts.return_on_personnel_cost_pct != null && (
+                  <div className={styles.costStat}>
+                    <span className={styles.costStatLabel}>Retorno sobre costo de personal</span>
+                    <span className={styles.costStatValue}>{Number(fleetCosts.return_on_personnel_cost_pct).toFixed(1)}%</span>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.compTable}>
+                <div className={`${styles.compRow} ${styles.compHead}`}>
+                  <span>Categoría</span>
+                  <span />
+                  <span className={styles.compNum}>Monto</span>
+                  <span className={styles.compNum}>Por km</span>
+                  <span className={styles.compNum}>% del {fixedIncluded ? "costo total" : "costo variable"}</span>
+                </div>
+                {fleetCosts.composition
+                  .filter((c) => fixedIncluded || Number(c.amount) > 0)
+                  .map((c) => (
+                    <div className={styles.compRow} key={c.key}>
+                      <span>{c.label}</span>
+                      <span className={styles.compBarTrack}>
+                        <span className={styles.compBarFill} style={{ width: `${Math.min(100, Number(c.share_pct ?? 0))}%` }} />
+                      </span>
+                      <span className={`${styles.compNum} mono`}>{currency.format(Number(c.amount))}</span>
+                      <span className={`${styles.compNum} mono`}>{c.per_km != null ? currency.format(Number(c.per_km)) : "—"}</span>
+                      <span className={`${styles.compNum} mono`}>{c.share_pct != null ? `${Number(c.share_pct).toFixed(1)}%` : "—"}</span>
+                    </div>
+                  ))}
+              </div>
+              {summary?.unallocated_personnel_cost && Number(summary.unallocated_personnel_cost) > 0 && (
+                <p className={styles.compFootnote}>
+                  Incluye {currency.format(Number(summary.unallocated_personnel_cost))} de personal de conductores sin kilómetros en el período:
+                  cuenta en el total de la flota, en ningún vehículo.
+                </p>
+              )}
+              {costModel && (
+                <details className={styles.method}>
+                  <summary>Cómo se calcula cada indicador</summary>
+                  <ul>
+                    {costModel.indicators.map((i) => (
+                      <li key={i.id}>
+                        <strong>{i.name}</strong>: {i.formula} — <em>{i.source}</em>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </>
+          ) : (
+            <p className={styles.empty}>{isLoading ? "Cargando…" : "Sin datos para este período."}</p>
+          )}
         </div>
 
         <div className={styles.actionZone}>
@@ -683,9 +894,11 @@ function DashboardPage() {
             <span className={styles.panelTitle}>
               {category ? `Gasto en ${activeOption.label.toLowerCase()} por vehículo` : "Composición de gastos por vehículo"}
             </span>
-            <button type="button" className={styles.exportButton} onClick={handleExport}>
-              Exportar a Excel
-            </button>
+            {isAdmin && (
+              <button type="button" className={styles.exportButton} onClick={handleExport}>
+                Exportar a Excel
+              </button>
+            )}
           </div>
 
           <p className={styles.panelSubtitle}>
@@ -694,6 +907,7 @@ function DashboardPage() {
 
           {!category && fleetTotal > 0 && (
             <div className={styles.percentRow}>
+              <span className={styles.percentHint}>% del gasto operativo:</span>
               {(
                 [
                   ["combustible", "Combustible", "var(--chart-combustible)"],
@@ -849,10 +1063,17 @@ function DashboardPage() {
                   <th>Peajes</th>
                   <th>Alimentación</th>
                   <th>Mantenimiento</th>
-                  <th>{category ? `Total (${activeOption.label})` : "Total"}</th>
-                  <th>Costo/km</th>
+                  <th>{category ? `Gasto (${activeOption.label})` : "Gasto operativo"}</th>
+                  <th>Gasto/km</th>
                   <th>Consumo</th>
-                  <th>Margen</th>
+                  <th>Contribución</th>
+                  {fixedIncluded && (
+                    <>
+                      <th>Costo total (Ct)</th>
+                      <th>Ct/km</th>
+                      <th>Utilidad</th>
+                    </>
+                  )}
                   <th>Utilización</th>
                   <th>Alertas</th>
                 </tr>
@@ -878,6 +1099,13 @@ function DashboardPage() {
                       {v.fuel_efficiency_l_100km !== null ? `${Number(v.fuel_efficiency_l_100km).toFixed(1)} L/100km` : "—"}
                     </td>
                     <td className="mono">{v.margin !== null ? currency.format(Number(v.margin)) : "—"}</td>
+                    {fixedIncluded && (
+                      <>
+                        <td className="mono">{v.costs?.total_cost != null ? currency.format(Number(v.costs.total_cost)) : "—"}</td>
+                        <td className="mono">{v.costs?.ct_per_km != null ? `${currency.format(Number(v.costs.ct_per_km))}/km` : "—"}</td>
+                        <td className="mono">{v.costs?.profit != null ? currency.format(Number(v.costs.profit)) : "—"}</td>
+                      </>
+                    )}
                     <td className="mono">{v.utilization_pct !== null ? `${Number(v.utilization_pct).toFixed(0)}%` : "—"}</td>
                     <td>
                       {v.pending_maintenance_alerts > 0 ? (
@@ -925,7 +1153,13 @@ function DashboardPage() {
                     <th>Total</th>
                     <th>Costo/km</th>
                     <th>Consumo</th>
-                    <th>Margen</th>
+                    <th>Contribución</th>
+                    {driverSummary.personnel_included && (
+                      <>
+                        <th>Personal</th>
+                        <th>Ingreso por $ de personal</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -944,6 +1178,12 @@ function DashboardPage() {
                         <td className="mono">{d.cost_per_km !== null ? `${currency.format(Number(d.cost_per_km))}/km` : "—"}</td>
                         <td className="mono">{d.fuel_efficiency_l_100km !== null ? `${Number(d.fuel_efficiency_l_100km).toFixed(1)} L/100km` : "—"}</td>
                         <td className="mono">{d.margin !== null ? currency.format(Number(d.margin)) : "—"}</td>
+                        {driverSummary.personnel_included && (
+                          <>
+                            <td className="mono">{d.personnel_cost != null ? currency.format(Number(d.personnel_cost)) : "—"}</td>
+                            <td className="mono">{d.labour_productivity != null ? `${Number(d.labour_productivity).toFixed(2)}×` : "—"}</td>
+                          </>
+                        )}
                       </tr>
                     ))}
                 </tbody>
