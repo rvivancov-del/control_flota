@@ -25,6 +25,21 @@ Para apuntar un servicio a la base sembrada sin tocar la viva:
 docker compose exec -e POSTGRES_DB=flota_seed fleet-core-service <comando>
 ```
 
+## Modelo de costos
+
+| Script | Qué hace |
+|---|---|
+| `seed_costos_ejemplo.py` | Carga costos fijos por vehículo y costos de personal por conductor **ilustrativos** (sus notas empiezan por `EJEMPLO`; la regla de cálculo está en la cabecera del script). La base piloto no los trae. Es idempotente y solo toca filas `EJEMPLO`. Por defecto escribe en `flota_seed`; para la base viva exige `--viva`; `--project flota_verif` apunta a la pila de verificación; `--quitar` los borra. |
+| `check_iva_rates.py` | Compara las tarifas de IVA de `iva_config.json` (backend) con las de `frontend/src/utils/tax.ts`. Con `--estricto` falla también mientras no las verifique un contador. |
+| `gen_doc_modelo_costos.py` | Regenera `12_RESULTADOS_OBTENIDOS/modelo_de_costos_indicadores.md` (tabla indicador → fórmula → fuente → código) desde `cost_model.py`. Con `--check` falla si el documento no está al día. |
+
+```bash
+python scripts/seed_costos_ejemplo.py                      # sobre flota_seed
+python scripts/seed_costos_ejemplo.py --db flota_db --viva # base viva
+python scripts/check_iva_rates.py
+python scripts/gen_doc_modelo_costos.py --check
+```
+
 ## Cuándo reexportar
 
 Solo si cambia a propósito la base piloto (y por tanto las cifras del documento). Después

@@ -13,6 +13,7 @@ import type {
   TripFilters,
   TripInput,
 } from "../types/trips";
+import type { FixedCost, FixedCostInput, PersonnelCost, PersonnelCostInput } from "../types/costs";
 import type {
   MaintenanceCompleteInput,
   MaintenanceInput,
@@ -70,6 +71,19 @@ export const fleetApi = {
     apiClient.get<Expense[]>(`/fleet/trips/${tripId}/expenses`, token),
   createExpense: (token: string, tripId: string, payload: ExpenseInput) =>
     apiClient.post<Expense>(`/fleet/trips/${tripId}/expenses`, payload, token),
+
+  // Costos fijos por vehículo y de personal por conductor (Fase 3): solo el rol admin.
+  listFixedCosts: (token: string) => apiClient.get<FixedCost[]>("/fleet/fixed-costs", token),
+  createFixedCost: (token: string, payload: FixedCostInput) => apiClient.post<FixedCost>("/fleet/fixed-costs", payload, token),
+  updateFixedCost: (token: string, id: string, payload: Partial<FixedCostInput>) =>
+    apiClient.patch<FixedCost>(`/fleet/fixed-costs/${id}`, payload, token),
+  deleteFixedCost: (token: string, id: string) => apiClient.delete(`/fleet/fixed-costs/${id}`, token),
+  listPersonnelCosts: (token: string) => apiClient.get<PersonnelCost[]>("/fleet/personnel-costs", token),
+  createPersonnelCost: (token: string, payload: PersonnelCostInput) =>
+    apiClient.post<PersonnelCost>("/fleet/personnel-costs", payload, token),
+  updatePersonnelCost: (token: string, id: string, payload: Partial<PersonnelCostInput>) =>
+    apiClient.patch<PersonnelCost>(`/fleet/personnel-costs/${id}`, payload, token),
+  deletePersonnelCost: (token: string, id: string) => apiClient.delete(`/fleet/personnel-costs/${id}`, token),
 
   listVehicleMaintenance: (token: string, vehicleId: string) =>
     apiClient.get<MaintenanceRecord[]>(`/fleet/vehicles/${vehicleId}/maintenance`, token),

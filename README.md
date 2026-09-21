@@ -16,9 +16,13 @@ tres microservicios descritos abajo. Cobertura de pruebas medida con
 - Registra vehículos, conductores, viajes, gastos (combustible, peajes,
   alimentación) y mantenimiento (preventivo, correctivo, programado por
   kilometraje) de una flota de camiones.
-- Calcula costo total, costo por kilómetro, margen (ingreso − costo),
-  consumo de combustible y utilización de la flota, con gráficas de
-  tendencia, distribución y composición del gasto.
+- Calcula el costo variable y el costo total (Ct = Cv + Cf, con los costos
+  fijos y de personal que registra el administrador), su estructura en las
+  ocho categorías del costo por kilómetro, ingreso y utilidad por kilómetro,
+  margen, productividad laboral, consumo de combustible y utilización de la
+  flota, con gráficas de tendencia, distribución y composición del gasto. Los
+  montos se ven con o sin IVA. Fórmulas y fuentes:
+  `12_RESULTADOS_OBTENIDOS/modelo_de_costos_indicadores.md`.
 - Alerta automáticamente cuándo un mantenimiento vence por kilometraje, y
   prioriza qué vehículo atender primero combinando **seguridad, urgencia y
   costo** con el método Analytic Hierarchy Process (Saaty, 1980) — no un

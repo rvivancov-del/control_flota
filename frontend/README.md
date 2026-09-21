@@ -12,7 +12,7 @@ en `/login`.
 src/
 ├── main.tsx              # punto de entrada: monta <App/> con router + AuthProvider
 ├── App.tsx                # mapa de rutas (react-router-dom)
-├── nav.ts                  # los 6 módulos del menú lateral
+├── nav.ts                  # los 7 módulos del menú lateral (Costos y Usuarios, solo administrador)
 ├── context/
 │   └── AuthContext.tsx      # sesión (token + usuario), persistida en localStorage
 ├── pages/                   # una pantalla por ruta -- ver detalle abajo

@@ -14,6 +14,7 @@ import TripDetailPage from "./pages/TripDetailPage";
 import MaintenancePage from "./pages/MaintenancePage";
 import UsersPage from "./pages/UsersPage";
 import ReportsPage from "./pages/ReportsPage";
+import CostsPage from "./pages/CostsPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import { CHANGE_PASSWORD_PATH } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
@@ -110,6 +111,17 @@ function App() {
         element={
           <ProtectedRoute>
             <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/costos"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <CostsPage />
+            </AdminRoute>
           </ProtectedRoute>
         }
       />

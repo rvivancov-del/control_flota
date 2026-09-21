@@ -1,15 +1,18 @@
 // Tipos de tendencias, reportes, conductores/rutas y priorización AHP
 // (RF-20), reflejo de los esquemas de reporting-service.
-import type { ExpenseBreakdown } from "./dashboard";
+import type { ExpenseBreakdown, IvaMode } from "./dashboard";
 
 export type TrendPoint = {
   period_label: string;
+  /** Primer día del período del punto: distingue los períodos completos del que está en curso. */
+  period_start: string | null;
   total_cost: string;
   breakdown: ExpenseBreakdown;
 };
 
 export type TrendResponse = {
   points: TrendPoint[];
+  iva_mode: IvaMode;
 };
 
 export type MaintenanceReportItem = {
@@ -120,6 +123,8 @@ export type ReportFilters = {
   date_from?: string;
   date_to?: string;
   category?: ExpenseCategory;
+  /** Fase 3: bruto (montos pagados) o neto (sin IVA). */
+  iva_mode?: IvaMode;
 };
 
 export type DriverExpenseBreakdown = {
@@ -140,11 +145,16 @@ export type DriverSummary = {
   margin: string | null;
   fuel_liters: string;
   fuel_efficiency_l_100km: string | null;
+  /** Solo admin: costo de personal del conductor en el período y su productividad laboral (ingreso / personal). */
+  personnel_cost: string | null;
+  labour_productivity: string | null;
 };
 
 export type DriverSummaryResponse = {
   drivers: DriverSummary[];
   fleet_total_cost: string;
+  iva_mode: IvaMode;
+  personnel_included: boolean;
 };
 
 export type RouteSummary = {
@@ -158,4 +168,18 @@ export type RouteSummary = {
 
 export type RouteSummaryResponse = {
   routes: RouteSummary[];
+  iva_mode: IvaMode;
+};
+
+/** Metodología del modelo de costos (GET /reports/dashboard/cost-model). */
+export type CostModelInfo = {
+  categories: { key: string; label: string; items: string[]; behavior: "variable" | "fija" | "mixta" }[];
+  indicators: { id: string; name: string; formula: string; source: string; where: string }[];
+  iva: {
+    version: string;
+    estado: string;
+    procedencia: string;
+    modo_por_defecto: IvaMode;
+    tarifas: Record<string, number>;
+  };
 };
