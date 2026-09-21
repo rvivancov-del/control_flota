@@ -82,6 +82,9 @@ def sensitivity(
     return rows
 
 
+PROXIMO_KM_REFERENCIA = 1500  # umbral de la política provisional de fleet-core; solo para el conjunto sintético
+
+
 def standard_item_set() -> list[dict]:
     """18 mantenimientos sintéticos: los 6 tipos de la configuración por 3
     estados de urgencia (vencido, próximo, lejano). Cubre todas las
@@ -93,7 +96,7 @@ def standard_item_set() -> list[dict]:
                 {
                     "id": f"{mtype}-{label}",
                     "seguridad": ahp.safety_score(mtype),
-                    "urgencia": ahp.urgency_score(km),
+                    "urgencia": ahp.urgency_score(km, PROXIMO_KM_REFERENCIA),
                     "costo": ahp.cost_score(mtype, {}),
                 }
             )

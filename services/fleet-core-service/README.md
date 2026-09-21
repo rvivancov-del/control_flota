@@ -15,7 +15,7 @@ app/
 ├── drivers/          # RF-05: alta, edición de conductores + token de QR (RF-18)
 ├── trips/            # RF-06, RF-07, RF-14: viajes, kilometraje, consultas
 ├── expenses/         # RF-08, RF-09, RF-10: combustible, peajes, alimentación
-├── maintenance/       # RF-11, RF-12, RF-13: tipos de mantenimiento y alertas por km
+├── maintenance/       # RF-11, RF-12, RF-13: tipos de mantenimiento, alertas por km y su política (policy.py + maintenance_policy.json)
 ├── despacho/           # RF-18: portal del conductor -- sin sesión, autenticado por token de QR
 └── analytics/           # agregación SQL (SUM/GROUP BY) que consume reporting-service
 ```
@@ -43,7 +43,8 @@ requieren `Authorization: Bearer <token>`.
 | POST/GET | `/trips/{id}/expenses` | autenticado | RF-08, RF-09, RF-10 |
 | POST/GET | `/vehicles/{id}/maintenance` | autenticado | RF-11, RF-12 |
 | PATCH | `/maintenance/{id}/complete` \| `/cost` | autenticado | RF-11 |
-| GET | `/maintenance/alerts` | autenticado | RF-13 |
+| GET | `/maintenance/alerts` | autenticado | RF-13: pendientes vencidos o próximos, con `km_remaining` y `urgency` |
+| GET | `/maintenance/policy` | autenticado | RF-13: umbral 'próximo' vigente, su estado y su procedencia |
 | GET | `/despacho/{driver_id}?token=` | **público**, token de QR | RF-18 |
 | POST | `/despacho/{driver_id}?token=` | **público**, token de QR | RF-18 |
 | GET | `/analytics/expenses` \| `/trips` \| `/routes` \| `/maintenance` | autenticado (uso interno de reporting-service) | soporte de RF-15 a RF-20 |
@@ -70,3 +71,26 @@ docker compose exec fleet-core-service sh -c "pip install -q -r requirements-tes
 ```
 
 Cobertura real medida con `coverage.py`: 82%.
+
+## Política de alertas de mantenimiento (RF-13)
+
+`app/maintenance/policy.py` es el ÚNICO lugar que decide si un mantenimiento
+pendiente está `vencido` (km restantes <= 0), `proximo` (faltan `proximo_km` o
+menos) o `normal`. El historial por vehículo, `/maintenance/alerts` y el cierre
+de viaje devuelven `km_remaining` y `urgency` ya calculados; reporting-service y
+el frontend los consumen y **no aplican un umbral propio** (el frontend lee el
+umbral de `/maintenance/policy`).
+
+El umbral vive en `app/maintenance/maintenance_policy.json` (o en la ruta de
+`MAINTENANCE_POLICY_PATH`), que declara su `estado` y su `procedencia`; admite
+excepciones por tipo en `proximo_km_por_tipo`. Hoy el estado es
+`provisional_desarrollador` (1500 km, sin respaldo de expertos) y se reemplaza con
+la mediana de la pregunta 6.1 del cuestionario de expertos. Un archivo inválido
+detiene el arranque. No hay notificaciones por SMS o WhatsApp (fuera de alcance):
+la alerta es visible en la aplicación.
+
+Pruebas unitarias (sin base de datos ni stack):
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work python:3.12-slim sh -c   "pip install -q -r requirements.txt -r requirements-test.txt && python -m pytest -q tests/test_maintenance_policy.py"
+```

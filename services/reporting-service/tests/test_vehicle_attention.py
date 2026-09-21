@@ -66,21 +66,17 @@ def test_todos_con_costo_cero_no_divide_por_cero():
     assert ranking[0].attention_score == pytest.approx(0.75 * 0.5)
 
 
-@pytest.mark.parametrize(
-    "km, esperado",
-    [(None, "normal"), (-1, "vencido"), (0, "vencido"), (1, "proximo"), (1500, "proximo"), (1501, "normal")],
-)
-def test_clasificacion_de_urgencia_con_umbral_explicito(km, esperado):
-    assert alert_policy.classify_urgency(km, proximo_km=1500) == esperado
+POLITICA = {"proximo_km": 1500, "proximo_km_por_tipo": {"frenos": 3000}}
 
 
-def test_sin_umbral_explicito_se_usa_el_de_la_configuracion():
-    umbral = ahp.CONFIG.urgencia.proximo_km
-    assert alert_policy.classify_urgency(umbral) == "proximo"
-    assert alert_policy.classify_urgency(umbral + 1) == "normal"
-    assert alert_policy.classify_urgency(0) == "vencido"
+def test_el_umbral_por_tipo_prevalece_sobre_el_general():
+    assert alert_policy.threshold_for(POLITICA, "frenos") == 3000
+    assert alert_policy.threshold_for(POLITICA, "aceite") == 1500
 
 
-def test_el_umbral_se_puede_pasar_explicito():
-    assert alert_policy.classify_urgency(2500, proximo_km=3000) == "proximo"
-    assert alert_policy.classify_urgency(2500, proximo_km=2000) == "normal"
+def test_una_politica_sin_excepciones_usa_el_umbral_general():
+    assert alert_policy.threshold_for({"proximo_km": 2000}, "frenos") == 2000
+
+
+def test_los_niveles_se_ordenan_del_mas_urgente_al_menos():
+    assert alert_policy.RANK[alert_policy.VENCIDO] < alert_policy.RANK[alert_policy.PROXIMO] < alert_policy.RANK[alert_policy.NORMAL]

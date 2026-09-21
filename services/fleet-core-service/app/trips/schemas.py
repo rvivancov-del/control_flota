@@ -67,6 +67,8 @@ class MaintenanceAlertBrief(BaseModel):
     maintenance_type: str
     category: str
     scheduled_mileage_km: Optional[int]
+    km_remaining: Optional[int] = None
+    urgency: Optional[str] = None  # "vencido" | "proximo" (RF-13)
 
 
 class TripCloseResult(BaseModel):

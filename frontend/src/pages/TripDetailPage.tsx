@@ -5,6 +5,7 @@ import AppShell from "../components/AppShell";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { fleetApi } from "../services/fleetApi";
+import { describeUrgency } from "../utils/maintenanceAlert";
 import { ApiError } from "../services/apiClient";
 import type { Driver, Vehicle } from "../types/fleet";
 import type { Expense, ExpenseInput, MaintenanceAlertBrief, Trip } from "../types/trips";
@@ -164,10 +165,10 @@ function TripDetailPage() {
 
         {alerts.length > 0 && (
           <div className={styles.alertBanner}>
-            <div className={styles.alertTitle}>⚠ Mantenimiento vencido por kilometraje</div>
+            <div className={styles.alertTitle}>⚠ Mantenimiento vencido o próximo por kilometraje</div>
             {alerts.map((a) => (
               <div key={a.id} className={styles.alertItem}>
-                {a.maintenance_type} — programado a {a.scheduled_mileage_km?.toLocaleString("es-EC")} km
+                {a.maintenance_type} — programado a {a.scheduled_mileage_km?.toLocaleString("es-EC")} km — {describeUrgency(a.urgency, a.km_remaining)}
               </div>
             ))}
           </div>

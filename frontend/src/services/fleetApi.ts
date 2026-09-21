@@ -10,7 +10,12 @@ import type {
   TripCloseResult,
   TripInput,
 } from "../types/trips";
-import type { MaintenanceCompleteInput, MaintenanceInput, MaintenanceRecord } from "../types/maintenance";
+import type {
+  MaintenanceCompleteInput,
+  MaintenanceInput,
+  MaintenancePolicy,
+  MaintenanceRecord,
+} from "../types/maintenance";
 
 export const fleetApi = {
   listVehicles: (token: string) => apiClient.get<Vehicle[]>("/fleet/vehicles", token),
@@ -51,4 +56,6 @@ export const fleetApi = {
     apiClient.patch<MaintenanceRecord>(`/fleet/maintenance/${id}/complete`, payload, token),
   listMaintenanceAlerts: (token: string) =>
     apiClient.get<MaintenanceRecord[]>("/fleet/maintenance/alerts", token),
+  maintenancePolicy: (token: string) =>
+    apiClient.get<MaintenancePolicy>("/fleet/maintenance/policy", token),
 };

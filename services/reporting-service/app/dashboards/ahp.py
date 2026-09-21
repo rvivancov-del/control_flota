@@ -18,7 +18,7 @@ del panel de expertos (07_MATRICES_DE_ANALISIS/ahp_juicios_expertos.xlsx).
 
 Ninguna constante de juicio está escrita en este archivo: la matriz, la
 criticidad de seguridad, la dirección del costo, los costos de respaldo y la
-curva de urgencia salen de ahp_config.json (o de la ruta en AHP_CONFIG_PATH) y
+forma de la curva de urgencia salen de ahp_config.json (o de la ruta en AHP_CONFIG_PATH) y
 se validan al importar. Un archivo inválido o con CR >= 0.10 detiene el
 arranque en vez de degradar en silencio.
 """
@@ -81,8 +81,9 @@ def _weights_and_cr(matrix: list[list[float]]) -> tuple[list[float], float]:
 # --------------------------------------------------------------------------
 @dataclass(frozen=True)
 class UrgencyConfig:
-    proximo_km: int
-    sin_urgencia_km: int
+    """Curva de urgencia en múltiplos del umbral 'próximo' de fleet-core (RF-13)."""
+
+    sin_urgencia_multiplo: float
     puntaje_en_proximo: float
     puntaje_sin_kilometraje: float
 
@@ -144,9 +145,7 @@ def load_config(path: str | os.PathLike | None = None) -> AhpConfig:
     respaldo = {k: _number(v, f"costo.respaldo_usd.{k}", 0.01, 1e9) for k, v in respaldo.items()}
 
     u = raw.get("urgencia", {})
-    proximo = _number(u.get("proximo_km"), "urgencia.proximo_km", 1, 1e6)
-    sin_urgencia = _number(u.get("sin_urgencia_km"), "urgencia.sin_urgencia_km", 1, 1e6)
-    _require(proximo < sin_urgencia, "urgencia.proximo_km debe ser menor que urgencia.sin_urgencia_km")
+    multiplo = _number(u.get("sin_urgencia_multiplo"), "urgencia.sin_urgencia_multiplo", 1.01, 100)
     en_proximo = _number(u.get("puntaje_en_proximo"), "urgencia.puntaje_en_proximo", 0.01, 0.99)
     sin_km = _number(u.get("puntaje_sin_kilometraje"), "urgencia.puntaje_sin_kilometraje", 0.0, 1.0)
 
@@ -157,7 +156,7 @@ def load_config(path: str | os.PathLike | None = None) -> AhpConfig:
         matrix=matrix,
         criticidad_seguridad=criticidad,
         costo=CostConfig(direccion=cost["direccion"], respaldo_usd=respaldo),
-        urgencia=UrgencyConfig(int(proximo), int(sin_urgencia), en_proximo, sin_km),
+        urgencia=UrgencyConfig(multiplo, en_proximo, sin_km),
     )
 
 
@@ -187,19 +186,20 @@ def safety_score(maintenance_type: str, criticidad: dict[str, float] | None = No
     return table.get(maintenance_type, table["otro"])
 
 
-def urgency_score(km_remaining: int | None, cfg: UrgencyConfig | None = None) -> float:
+def urgency_score(km_remaining: int | None, proximo_km: int, cfg: UrgencyConfig | None = None) -> float:
     """1.0 = vencido; baja linealmente hasta `puntaje_en_proximo` al llegar a
-    `proximo_km` y de ahí hasta 0 en `sin_urgencia_km`. Sin kilometraje
-    programado devuelve `puntaje_sin_kilometraje`."""
+    `proximo_km` (umbral de fleet-core, RF-13) y de ahí hasta 0 a
+    `sin_urgencia_multiplo` veces ese umbral. Sin kilometraje programado
+    devuelve `puntaje_sin_kilometraje`."""
     cfg = cfg or CONFIG.urgencia
     if km_remaining is None:
         return cfg.puntaje_sin_kilometraje
     if km_remaining <= 0:
         return 1.0
-    if km_remaining <= cfg.proximo_km:
-        return 1.0 - (1.0 - cfg.puntaje_en_proximo) * (km_remaining / cfg.proximo_km)
-    span = cfg.sin_urgencia_km - cfg.proximo_km
-    return max(0.0, cfg.puntaje_en_proximo * (1.0 - (km_remaining - cfg.proximo_km) / span))
+    if km_remaining <= proximo_km:
+        return 1.0 - (1.0 - cfg.puntaje_en_proximo) * (km_remaining / proximo_km)
+    span = proximo_km * (cfg.sin_urgencia_multiplo - 1.0)
+    return max(0.0, cfg.puntaje_en_proximo * (1.0 - (km_remaining - proximo_km) / span))
 
 
 def cost_score(maintenance_type: str, avg_cost_by_type: dict[str, float], cfg: CostConfig | None = None) -> float:
