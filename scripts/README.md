@@ -43,10 +43,11 @@ docker compose build
 docker compose -p flota_verif -f docker-compose.yml -f infra/docker-compose.verif.yml up -d
 docker compose -p flota_verif exec -T postgres psql -U flota -d flota_db -v ON_ERROR_STOP=1 -q < scripts/seed/pilot_dataset.sql
 
-# pruebas unitarias (no necesitan pila) y de integración (contra la pila de verificación)
-docker run --rm -v "$PWD/services/fleet-core-service:/app" -w /app python:3.12-slim sh -c \
-  "pip install -q -r requirements.txt -r requirements-test.txt && python -m pytest tests -q"   # unitarias + humo con la pila viva en :8080
-FLOTA_BASE_URL=http://host.docker.internal:18080/api python -m pytest tests -q               # humo contra la pila de verificación
+# pruebas de un servicio (unitarias + integración) dentro de un contenedor desechable; en Git Bash
+# de Windows anteponga MSYS_NO_PATHCONV=1. host.docker.internal es el anfitrión visto desde el contenedor.
+docker run --rm -e FLOTA_BASE_URL=http://host.docker.internal:18080/api \
+  -v "$PWD/services/fleet-core-service:/app" -w /app python:3.12-slim sh -c \
+  "pip install -q -r requirements.txt -r requirements-test.txt && python -m pytest tests -q"
 
 docker compose -p flota_verif down -v      # elimina la pila y su volumen
 ```
