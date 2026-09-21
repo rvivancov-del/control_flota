@@ -17,6 +17,6 @@ export const NAV_ITEMS: NavItem[] = [
   { path: "/conductores", label: "Conductores", description: "Alta, edición y consulta de conductores", icon: UserRound },
   { path: "/viajes", label: "Viajes", description: "Registrar, iniciar, cerrar y consultar viajes", icon: Route },
   { path: "/mantenimiento", label: "Mantenimiento", description: "Registros, alertas por kilometraje", icon: Wrench },
-  { path: "/reportes", label: "Reportes", description: "Exportar costos y mantenimientos a Excel", icon: FileSpreadsheet },
+  { path: "/reportes", label: "Reportes", description: "Costos y mantenimientos por período; exportación a Excel y PDF (administrador)", icon: FileSpreadsheet },
   { path: "/usuarios", label: "Usuarios", description: "Gestión de cuentas y roles", icon: Users, adminOnly: true },
 ];

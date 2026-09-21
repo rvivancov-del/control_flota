@@ -25,9 +25,10 @@ function badgeClass(status: string) {
   return `${styles.badge} ${styles.badgeInactivo}`;
 }
 
-/** RF-04: alta, edición y consulta de vehículos de la flota. */
+/** RF-04: alta, edición y consulta de vehículos de la flota. RF-03: solo el
+ * administrador da de alta y edita; el operador consulta. */
 function VehiclesPage() {
-  const { token } = useAuth();
+  const { token, isAdmin } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -96,10 +97,12 @@ function VehiclesPage() {
       <div className={styles.panel}>
         <div className={styles.panelHead}>
           <span className={styles.panelTitle}>Flota registrada</span>
-          <button type="button" className={styles.newButton} onClick={openCreate}>
-            <Plus size={16} />
-            Nuevo vehículo
-          </button>
+          {isAdmin && (
+            <button type="button" className={styles.newButton} onClick={openCreate}>
+              <Plus size={16} />
+              Nuevo vehículo
+            </button>
+          )}
         </div>
 
         {loadError && <p className={styles.empty}>{loadError}</p>}
@@ -117,7 +120,7 @@ function VehiclesPage() {
                 <th>Año</th>
                 <th>Km actual</th>
                 <th>Estado</th>
-                <th></th>
+                {isAdmin && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -132,11 +135,13 @@ function VehiclesPage() {
                   <td>
                     <span className={badgeClass(v.status)}>{v.status}</span>
                   </td>
-                  <td>
-                    <button type="button" className={styles.editLink} onClick={() => openEdit(v)}>
-                      Editar
-                    </button>
-                  </td>
+                  {isAdmin && (
+                    <td>
+                      <button type="button" className={styles.editLink} onClick={() => openEdit(v)}>
+                        Editar
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

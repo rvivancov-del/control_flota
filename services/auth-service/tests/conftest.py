@@ -1,7 +1,10 @@
+import os
+
 import pytest
 import requests
 
-BASE = "http://localhost:8080/api"
+# Ver scripts/README.md: apuntar a una base desechable con FLOTA_BASE_URL.
+BASE = os.getenv("FLOTA_BASE_URL", "http://localhost:8080/api")
 
 
 @pytest.fixture(scope="session")

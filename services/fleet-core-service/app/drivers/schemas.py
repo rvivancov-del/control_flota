@@ -32,7 +32,17 @@ class DriverRead(BaseModel):
     phone: Optional[str]
     status: str
     assigned_vehicle_id: Optional[uuid.UUID]
-    # Secreto del portal de despacho por QR — solo lo ve quien administra
-    # conductores (mismo control de acceso que el resto de este router).
-    qr_token: Optional[str]
+    # RF-18: el token del QR NO se devuelve aquí (solo se guarda su hash);
+    # únicamente el estado de la credencial, para que el panel muestre si el
+    # conductor tiene QR, cuándo vence y cuándo se usó por última vez.
+    has_qr: bool
+    qr_token_expires_at: Optional[datetime]
+    qr_token_last_used_at: Optional[datetime]
     created_at: Optional[datetime]
+
+
+class DriverQrIssued(DriverRead):
+    """Respuesta al emitir una credencial (alta de conductor o regenerar QR):
+    es la única vez que el token viaja en claro; no se puede volver a consultar."""
+
+    qr_token: str

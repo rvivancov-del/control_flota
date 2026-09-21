@@ -48,9 +48,10 @@ async function downloadAuthenticated(url: string, token: string, filename: strin
   URL.revokeObjectURL(objectUrl);
 }
 
-/** RF-17: reporte detallado de mantenimientos y exportación de costos a Excel/PDF. */
+/** RF-17: reporte detallado de mantenimientos y exportación de costos a Excel/PDF.
+ * RF-03: ambos roles consultan; solo el administrador exporta. */
 function ReportsPage() {
-  const { token } = useAuth();
+  const { token, isAdmin } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({});
   const [period, setPeriod] = useState<"week" | "month">("month");
@@ -135,22 +136,24 @@ function ReportsPage() {
                 onChange={(e) => setFilters({ ...filters, date_to: e.target.value || undefined })}
               />
             </div>
-            <div className={styles.exportRow}>
-              <button
-                type="button"
-                className={styles.exportButton}
-                onClick={() => token && downloadAuthenticated(reportsApi.exportUrl(filters), token, "reporte_costos.xlsx")}
-              >
-                Excel
-              </button>
-              <button
-                type="button"
-                className={styles.exportButtonSecondary}
-                onClick={() => token && downloadAuthenticated(reportsApi.exportPdfUrl(filters), token, "reporte_costos.pdf")}
-              >
-                PDF
-              </button>
-            </div>
+            {isAdmin && (
+              <div className={styles.exportRow}>
+                <button
+                  type="button"
+                  className={styles.exportButton}
+                  onClick={() => token && downloadAuthenticated(reportsApi.exportUrl(filters), token, "reporte_costos.xlsx")}
+                >
+                  Excel
+                </button>
+                <button
+                  type="button"
+                  className={styles.exportButtonSecondary}
+                  onClick={() => token && downloadAuthenticated(reportsApi.exportPdfUrl(filters), token, "reporte_costos.pdf")}
+                >
+                  PDF
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

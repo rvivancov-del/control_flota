@@ -6,7 +6,8 @@ import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { fleetApi } from "../services/fleetApi";
 import { ApiError } from "../services/apiClient";
-import type { Driver, DriverInput, Vehicle } from "../types/fleet";
+import type { Driver, DriverInput, DriverQrIssued, Vehicle } from "../types/fleet";
+import { buildDespachoLink } from "../utils/despachoLink";
 import styles from "./DriversPage.module.css";
 
 const EMPTY_FORM: DriverInput & { status: string } = {
@@ -18,15 +19,25 @@ const EMPTY_FORM: DriverInput & { status: string } = {
   status: "activo",
 };
 
-function despachoUrl(driver: Driver): string {
-  const params = new URLSearchParams({ driverId: driver.id, token: driver.qr_token ?? "" });
-  return `${window.location.origin}/despacho?${params.toString()}`;
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString("es-EC");
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString("es-EC", { dateStyle: "short", timeStyle: "short" });
+
+/** Estado de la credencial del QR de un conductor (RF-18). */
+function qrStatus(driver: Driver): { label: string; tone: "ok" | "warn" | "none" } {
+  if (!driver.has_qr) return { label: "Sin código", tone: "none" };
+  const expires = driver.qr_token_expires_at;
+  if (expires && new Date(expires).getTime() <= Date.now()) {
+    return { label: `Vencido el ${formatDate(expires)}`, tone: "warn" };
+  }
+  return { label: expires ? `Vigente hasta ${formatDate(expires)}` : "Vigente", tone: "ok" };
 }
 
-/** RF-05: alta, edición y consulta de conductores, incluida la gestión de
- * su token de código QR para el portal de despacho (RF-18). */
+/** RF-05: alta, edición y consulta de conductores, incluida la gestión de su
+ * credencial de código QR para el portal de despacho (RF-18). RF-03: solo el
+ * administrador da de alta, edita y gestiona el QR; el operador consulta. */
 function DriversPage() {
-  const { token } = useAuth();
+  const { token, isAdmin } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,8 +49,12 @@ function DriversPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [qrDriver, setQrDriver] = useState<Driver | null>(null);
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  // Conductor cuya credencial se está gestionando, y credencial recién emitida (el
+  // token en claro solo existe en esta pantalla: el servidor no puede volver a darlo).
+  const [manageQr, setManageQr] = useState<Driver | null>(null);
+  const [issued, setIssued] = useState<DriverQrIssued | null>(null);
+  const [isQrBusy, setIsQrBusy] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   const vehicleLabel = (id: string | null) => {
     const v = vehicles.find((vehicle) => vehicle.id === id);
@@ -92,7 +107,7 @@ function DriversPage() {
         const { license_number: _license, ...updatable } = payload;
         await fleetApi.updateDriver(token, editing.id, updatable);
       } else {
-        await fleetApi.createDriver(token, payload);
+        setIssued(await fleetApi.createDriver(token, payload));
       }
       setIsModalOpen(false);
       load();
@@ -103,17 +118,45 @@ function DriversPage() {
     }
   };
 
-  const handleRegenerateQr = async () => {
-    if (!token || !qrDriver) return;
-    setIsRegenerating(true);
+  const openManageQr = (driver: Driver) => {
+    setQrError(null);
+    setManageQr(driver);
+  };
+
+  const handleIssueQr = async () => {
+    if (!token || !manageQr) return;
+    if (manageQr.has_qr && !window.confirm("El código impreso actual dejará de funcionar. ¿Generar uno nuevo?")) {
+      return;
+    }
+    setIsQrBusy(true);
+    setQrError(null);
     try {
-      const updated = await fleetApi.regenerateDriverQr(token, qrDriver.id);
-      setQrDriver(updated);
-      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-    } catch {
-      // el modal sigue mostrando el código anterior si falla
+      const rotated = await fleetApi.regenerateDriverQr(token, manageQr.id);
+      setManageQr(null);
+      setIssued(rotated);
+      load();
+    } catch (err) {
+      setQrError(err instanceof ApiError ? err.message : "No se pudo generar el código.");
     } finally {
-      setIsRegenerating(false);
+      setIsQrBusy(false);
+    }
+  };
+
+  const handleRevokeQr = async () => {
+    if (!token || !manageQr) return;
+    if (!window.confirm("El conductor no podrá despachar por QR hasta que se le genere un código nuevo. ¿Revocar?")) {
+      return;
+    }
+    setIsQrBusy(true);
+    setQrError(null);
+    try {
+      const updated = await fleetApi.revokeDriverQr(token, manageQr.id);
+      setManageQr(updated);
+      setDrivers((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+    } catch (err) {
+      setQrError(err instanceof ApiError ? err.message : "No se pudo revocar el código.");
+    } finally {
+      setIsQrBusy(false);
     }
   };
 
@@ -126,10 +169,12 @@ function DriversPage() {
       <div className={styles.panel}>
         <div className={styles.panelHead}>
           <span className={styles.panelTitle}>Conductores registrados</span>
-          <button type="button" className={styles.newButton} onClick={openCreate}>
-            <Plus size={16} />
-            Nuevo conductor
-          </button>
+          {isAdmin && (
+            <button type="button" className={styles.newButton} onClick={openCreate}>
+              <Plus size={16} />
+              Nuevo conductor
+            </button>
+          )}
         </div>
 
         {loadError && <p className={styles.empty}>{loadError}</p>}
@@ -147,8 +192,8 @@ function DriversPage() {
                 <th>Teléfono</th>
                 <th>Estado</th>
                 <th>Vehículo asignado</th>
-                <th></th>
-                <th></th>
+                <th>Código QR</th>
+                {isAdmin && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -161,22 +206,29 @@ function DriversPage() {
                   <td style={{ textTransform: "capitalize" }}>{d.status}</td>
                   <td className="mono">{vehicleLabel(d.assigned_vehicle_id)}</td>
                   <td>
-                    <button type="button" className={styles.editLink} onClick={() => openEdit(d)}>
-                      Editar
-                    </button>
+                    <span className={`${styles.qrStatus} ${styles[`qrStatus_${qrStatus(d).tone}`]}`}>
+                      {qrStatus(d).label}
+                    </span>
+                    {d.qr_token_last_used_at && (
+                      <span className={styles.qrLastUsed}>Último uso: {formatDateTime(d.qr_token_last_used_at)}</span>
+                    )}
                   </td>
-                  <td>
-                    <button
-                      type="button"
-                      className={styles.editLink}
-                      onClick={() => setQrDriver(d)}
-                      disabled={!d.qr_token}
-                      title={d.qr_token ? "Ver código QR de despacho" : "Sin código QR"}
-                    >
-                      <QrCode size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-                      QR
-                    </button>
-                  </td>
+                  {isAdmin && (
+                    <td className={styles.actionsCell}>
+                      <button type="button" className={styles.editLink} onClick={() => openEdit(d)}>
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.editLink}
+                        onClick={() => openManageQr(d)}
+                        title="Generar, renovar o revocar el código QR de despacho"
+                      >
+                        <QrCode size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+                        Gestionar QR
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -269,27 +321,19 @@ function DriversPage() {
         </Modal>
       )}
 
-      {qrDriver && (
-        <Modal title="Código QR de despacho" onClose={() => setQrDriver(null)}>
-          <div className={styles.qrCard} id="qr-print-area">
-            <div className={styles.qrCardHead}>FlotaControl — Tarjeta de cabina</div>
-            <div className={styles.qrCode}>
-              <QRCodeSVG value={despachoUrl(qrDriver)} size={200} level="M" />
-            </div>
-            <div className={styles.qrInfo}>
-              <div>
-                <strong>Conductor:</strong> {qrDriver.full_name}
-              </div>
-              <div>
-                <strong>Vehículo:</strong> {vehicleLabel(qrDriver.assigned_vehicle_id)}
-              </div>
-            </div>
-            <p className={styles.qrHint}>
-              Escanear con la cámara del teléfono para abrir el formulario de registro de salida.
-            </p>
-          </div>
+      {manageQr && (
+        <Modal title={`Código QR de despacho — ${manageQr.full_name}`} onClose={() => setManageQr(null)}>
+          {qrError && <p className={styles.formError}>{qrError}</p>}
+          <p className={styles.qrManageStatus}>
+            Estado: <strong>{qrStatus(manageQr).label}</strong>
+            {manageQr.qr_token_last_used_at && <> · Último uso: {formatDateTime(manageQr.qr_token_last_used_at)}</>}
+          </p>
+          <p className={styles.qrHint}>
+            Por seguridad el código no se puede volver a mostrar: en el sistema solo queda una huella cifrada. Si se
+            perdió la tarjeta, genere uno nuevo; el anterior dejará de funcionar.
+          </p>
 
-          {!qrDriver.assigned_vehicle_id && (
+          {!manageQr.assigned_vehicle_id && (
             <p className={styles.formError}>
               Este conductor todavía no tiene un vehículo asignado — el portal de despacho no va a funcionar hasta
               que se le asigne uno desde "Editar".
@@ -297,9 +341,59 @@ function DriversPage() {
           )}
 
           <div className={styles.formActions}>
-            <button type="button" className={styles.cancelButton} onClick={handleRegenerateQr} disabled={isRegenerating}>
+            {manageQr.has_qr && (
+              <button type="button" className={styles.cancelButton} onClick={handleRevokeQr} disabled={isQrBusy}>
+                Revocar código
+              </button>
+            )}
+            <button type="button" className={styles.submitButton} onClick={handleIssueQr} disabled={isQrBusy}>
               <RefreshCw size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-              {isRegenerating ? "Generando…" : "Regenerar código"}
+              {isQrBusy ? "Generando…" : manageQr.has_qr ? "Generar código nuevo" : "Generar código"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {issued && (
+        <Modal title="Código QR de despacho" onClose={() => setIssued(null)}>
+          <p className={styles.notice}>
+            <strong>Imprima esta tarjeta ahora.</strong> El código se muestra una sola vez: el sistema guarda solo una
+            huella cifrada y no puede volver a mostrarlo. Si se pierde, genere uno nuevo (el anterior dejará de
+            funcionar).
+          </p>
+          <div className={styles.qrCard} id="qr-print-area">
+            <div className={styles.qrCardHead}>FlotaControl — Tarjeta de cabina</div>
+            <div className={styles.qrCode}>
+              <QRCodeSVG value={buildDespachoLink(window.location.origin, issued.id, issued.qr_token)} size={200} level="M" />
+            </div>
+            <div className={styles.qrInfo}>
+              <div>
+                <strong>Conductor:</strong> {issued.full_name}
+              </div>
+              <div>
+                <strong>Vehículo:</strong> {vehicleLabel(issued.assigned_vehicle_id)}
+              </div>
+              {issued.qr_token_expires_at && (
+                <div>
+                  <strong>Vigente hasta:</strong> {formatDate(issued.qr_token_expires_at)}
+                </div>
+              )}
+            </div>
+            <p className={styles.qrHint}>
+              Escanear con la cámara del teléfono para abrir el formulario de registro de salida.
+            </p>
+          </div>
+
+          {!issued.assigned_vehicle_id && (
+            <p className={styles.formError}>
+              Este conductor todavía no tiene un vehículo asignado — el portal de despacho no va a funcionar hasta
+              que se le asigne uno desde "Editar".
+            </p>
+          )}
+
+          <div className={styles.formActions}>
+            <button type="button" className={styles.cancelButton} onClick={() => setIssued(null)}>
+              Cerrar
             </button>
             <button type="button" className={styles.submitButton} onClick={handlePrintCard}>
               Imprimir tarjeta

@@ -14,12 +14,14 @@ from app.analytics.schemas import (
     TripAggregateRow,
 )
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import ROLES_OPERATIVOS, require_role
 from app.models.expense import Expense
 from app.models.maintenance import MaintenanceRecord
 from app.models.trip import Trip
 
-router = APIRouter(prefix="/analytics", tags=["analytics"], dependencies=[Depends(get_current_user)])
+router = APIRouter(
+    prefix="/analytics", tags=["analytics"], dependencies=[Depends(require_role(*ROLES_OPERATIVOS))]
+)
 
 # Estos tres endpoints existen para que reporting-service deje de traer cada
 # viaje y cada gasto por HTTP y sumarlos en Python (N llamadas por N filas):

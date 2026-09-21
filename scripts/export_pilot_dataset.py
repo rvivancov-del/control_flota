@@ -9,8 +9,9 @@ Uso (desde la raíz del repositorio, con `docker compose up` corriendo):
     python scripts/export_pilot_dataset.py
 
 Genera scripts/seed/pilot_dataset.sql y scripts/seed/pilot_dataset.manifest.json.
-Los datos son ficticios; el qr_token de los conductores NO se exporta (es una
-credencial): scripts/seed_demo.py genera tokens nuevos al cargar.
+Los datos son ficticios; las columnas de credencial de los conductores (token del
+QR o su hash, emisión, vigencia, último uso) NO se exportan: la base cargada deja a
+cada conductor sin credencial y se genera desde el panel de administración.
 """
 import hashlib
 import json
@@ -25,7 +26,11 @@ SEED_DIR = ROOT / "scripts" / "seed"
 SOURCE_DB = "flota_db"
 # Orden de inserción: respeta las claves foráneas.
 TABLES = ["vehicles", "drivers", "trips", "expenses", "maintenance_records"]
-EXCLUDE_VALUES = {("drivers", "qr_token")}
+# Columnas que no se exportan (RF-18: credenciales de despacho). Incluye la columna en claro
+# anterior a la migración c3a7e15b9d20 para que el script funcione con cualquiera de los dos esquemas.
+EXCLUDE_COLUMNS = {
+    "drivers": {"qr_token", "qr_token_hash", "qr_token_issued_at", "qr_token_expires_at", "qr_token_last_used_at"}
+}
 
 
 def psql(query: str) -> list[str]:
@@ -62,8 +67,8 @@ def main() -> None:
             f"select row_to_json(t) from fleet.{table} t order by t.id")]
         counts[table] = len(rows)
         for row in rows:
-            cols = list(row.keys())
-            vals = [literal(None if (table, c) in EXCLUDE_VALUES else row[c]) for c in cols]
+            cols = [c for c in row.keys() if c not in EXCLUDE_COLUMNS.get(table, ())]
+            vals = [literal(row[c]) for c in cols]
             lines.append(f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join(vals)});")
     lines.append("COMMIT;")
     sql = "\n".join(lines) + "\n"

@@ -5,13 +5,13 @@ Uso (desde la raíz del repositorio, con `docker compose up` corriendo):
     python scripts/seed_demo.py --db mi_base    # otra base de destino
 
 Pasos: recrea la base de destino, crea el esquema `fleet`, aplica las migraciones
-de Alembic de fleet-core-service, carga scripts/seed/pilot_dataset.sql, genera un
-qr_token nuevo por conductor y verifica conteos y sumas contra el manifiesto.
+de Alembic de fleet-core-service, carga scripts/seed/pilot_dataset.sql y verifica
+conteos y sumas contra el manifiesto. Los conductores quedan sin credencial de
+despacho por QR: se genera desde el panel (Conductores -> Generar QR).
 NUNCA toca la base viva (`flota_db`): el script se niega a usarla como destino.
 """
 import argparse
 import json
-import secrets
 import subprocess
 import sys
 from decimal import Decimal
@@ -51,22 +51,16 @@ def main() -> None:
     manifest = json.loads((SEED_DIR / "pilot_dataset.manifest.json").read_text(encoding="utf-8"))
     dataset = (SEED_DIR / "pilot_dataset.sql").read_text(encoding="utf-8")
 
-    print(f"[1/6] Recreando la base '{db}'…")
+    print(f"[1/5] Recreando la base '{db}'…")
     psql("postgres", f"DROP DATABASE IF EXISTS {db} WITH (FORCE)")
     psql("postgres", f"CREATE DATABASE {db}")
-    print("[2/6] Creando el esquema fleet…")
+    print("[2/5] Creando el esquema fleet…")
     psql(db, "CREATE SCHEMA fleet")
-    print("[3/6] Aplicando migraciones de Alembic (fleet-core-service)…")
+    print("[3/5] Aplicando migraciones de Alembic (fleet-core-service)…")
     compose("exec", "-T", "-e", f"POSTGRES_DB={db}", "fleet-core-service", "alembic", "upgrade", "head")
-    print("[4/6] Cargando la base piloto…")
+    print("[4/5] Cargando la base piloto…")
     psql(db, sql=dataset)
-    print("[5/6] Generando qr_token nuevos por conductor…")
-    ids = psql(db, "select id from fleet.drivers order by id").split()
-    updates = "".join(
-        f"UPDATE fleet.drivers SET qr_token = '{secrets.token_urlsafe(24)}' WHERE id = '{i}';" for i in ids)
-    psql(db, sql=updates)
-
-    print("[6/6] Verificando contra el manifiesto…")
+    print("[5/5] Verificando contra el manifiesto…")
     ok = True
     for table, expected in manifest["counts"].items():
         got = int(psql(db, f"select count(*) from fleet.{table}").strip())

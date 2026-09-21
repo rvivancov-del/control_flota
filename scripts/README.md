@@ -11,8 +11,8 @@ son ficticios (placas, licencias y teléfonos de ejemplo).
 
 | Script | Qué hace |
 |---|---|
-| `export_pilot_dataset.py` | Lee la base viva (`flota_db`, solo lectura) y escribe `seed/pilot_dataset.sql` y `seed/pilot_dataset.manifest.json` (conteos, sumas y hash SHA-256). El `qr_token` de los conductores **no** se exporta: es una credencial. |
-| `seed_demo.py` | Recrea una base de demostración (por defecto `flota_seed`), crea el esquema `fleet`, aplica las migraciones de Alembic, carga `seed/pilot_dataset.sql`, genera `qr_token` nuevos y verifica conteos y sumas contra el manifiesto. Se niega a usar `flota_db` como destino. |
+| `export_pilot_dataset.py` | Lee la base viva (`flota_db`, solo lectura) y escribe `seed/pilot_dataset.sql` y `seed/pilot_dataset.manifest.json` (conteos, sumas y hash SHA-256). Las columnas de credencial del QR de los conductores (token o hash, emisión, vigencia, último uso) **no** se exportan. |
+| `seed_demo.py` | Recrea una base de demostración (por defecto `flota_seed`), crea el esquema `fleet`, aplica las migraciones de Alembic, carga `seed/pilot_dataset.sql` y verifica conteos y sumas contra el manifiesto. Los conductores quedan sin credencial de despacho: se genera desde el panel (Conductores → Generar QR). Se niega a usar `flota_db` como destino. |
 
 ```bash
 python scripts/seed_demo.py                # crea o recrea la base 'flota_seed'
@@ -30,3 +30,26 @@ docker compose exec -e POSTGRES_DB=flota_seed fleet-core-service <comando>
 Solo si cambia a propósito la base piloto (y por tanto las cifras del documento). Después
 de reexportar, actualice el documento y la matriz de trazabilidad
 (`07_MATRICES_DE_ANALISIS/matriz_trazabilidad.xlsx`, filas N-01 y N-07).
+
+## Pila de verificación aislada
+
+Las pruebas de integración (`services/*/tests/test_*_smoke.py`) **escriben datos**: crean y
+cancelan viajes, rotan la credencial de un conductor, activan y desactivan un usuario
+operador de prueba. Para no ensuciar la base de trabajo se corren contra una pila
+paralela con base propia y otros puertos (gateway en `:18080`, frontend en `:15173`):
+
+```bash
+docker compose build
+docker compose -p flota_verif -f docker-compose.yml -f infra/docker-compose.verif.yml up -d
+docker compose -p flota_verif exec -T postgres psql -U flota -d flota_db -v ON_ERROR_STOP=1 -q < scripts/seed/pilot_dataset.sql
+
+# pruebas unitarias (no necesitan pila) y de integración (contra la pila de verificación)
+docker run --rm -v "$PWD/services/fleet-core-service:/app" -w /app python:3.12-slim sh -c \
+  "pip install -q -r requirements.txt -r requirements-test.txt && python -m pytest tests -q"   # unitarias + humo con la pila viva en :8080
+FLOTA_BASE_URL=http://host.docker.internal:18080/api python -m pytest tests -q               # humo contra la pila de verificación
+
+docker compose -p flota_verif down -v      # elimina la pila y su volumen
+```
+
+`RUN_RATE_LIMIT_TESTS=1` activa la prueba que agota el cupo de peticiones del gateway
+(queda bloqueado ~1 minuto, por eso no corre por defecto).

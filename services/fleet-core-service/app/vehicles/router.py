@@ -5,18 +5,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import ADMIN, ROLES_OPERATIVOS, require_role
 from app.models.vehicle import Vehicle
 from app.vehicles.schemas import VehicleCreate, VehicleRead, VehicleUpdate
 
 router = APIRouter(
-    prefix="/vehicles", tags=["vehicles"], dependencies=[Depends(get_current_user)]
+    prefix="/vehicles", tags=["vehicles"], dependencies=[Depends(require_role(*ROLES_OPERATIVOS))]
 )
 
 
-@router.post("", response_model=VehicleRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=VehicleRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role(ADMIN))],
+)
 def create_vehicle(payload: VehicleCreate, db: Session = Depends(get_db)) -> VehicleRead:
-    """RF-04: alta de vehículos."""
+    """RF-04: alta de vehículos (solo admin, RF-03)."""
     if db.query(Vehicle).filter(Vehicle.plate == payload.plate).first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Ya existe un vehículo con esa placa."
@@ -44,11 +49,13 @@ def get_vehicle(vehicle_id: uuid.UUID, db: Session = Depends(get_db)) -> Vehicle
     return VehicleRead.model_validate(vehicle)
 
 
-@router.patch("/{vehicle_id}", response_model=VehicleRead)
+@router.patch(
+    "/{vehicle_id}", response_model=VehicleRead, dependencies=[Depends(require_role(ADMIN))]
+)
 def update_vehicle(
     vehicle_id: uuid.UUID, payload: VehicleUpdate, db: Session = Depends(get_db)
 ) -> VehicleRead:
-    """RF-04: edición de vehículos."""
+    """RF-04: edición de vehículos (solo admin, RF-03)."""
     vehicle = db.get(Vehicle, vehicle_id)
     if vehicle is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehículo no encontrado.")
