@@ -1,7 +1,7 @@
 // Llamadas HTTP a fleet-core-service (vía el gateway): vehículos,
 // conductores, viajes, gastos y mantenimiento.
 import { apiClient } from "./apiClient";
-import type { Driver, DriverInput, Vehicle, VehicleInput } from "../types/fleet";
+import type { Driver, DriverInput, DriverQrIssued, Vehicle, VehicleInput } from "../types/fleet";
 import type {
   Expense,
   ExpenseInput,
@@ -26,11 +26,13 @@ export const fleetApi = {
 
   listDrivers: (token: string) => apiClient.get<Driver[]>("/fleet/drivers", token),
   createDriver: (token: string, payload: DriverInput) =>
-    apiClient.post<Driver>("/fleet/drivers", payload, token),
+    apiClient.post<DriverQrIssued>("/fleet/drivers", payload, token),
   updateDriver: (token: string, id: string, payload: Partial<DriverInput> & { status?: string }) =>
     apiClient.patch<Driver>(`/fleet/drivers/${id}`, payload, token),
   regenerateDriverQr: (token: string, id: string) =>
-    apiClient.post<Driver>(`/fleet/drivers/${id}/regenerate-qr`, {}, token),
+    apiClient.post<DriverQrIssued>(`/fleet/drivers/${id}/regenerate-qr`, {}, token),
+  revokeDriverQr: (token: string, id: string) =>
+    apiClient.post<Driver>(`/fleet/drivers/${id}/revoke-qr`, {}, token),
 
   listTrips: (token: string) => apiClient.get<Trip[]>("/fleet/trips", token),
   getTrip: (token: string, id: string) => apiClient.get<Trip>(`/fleet/trips/${id}`, token),

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import ROLES_OPERATIVOS, require_role
 from app.expenses.schemas import ExpenseCreate, ExpenseRead, ExpenseUpdate
 from app.models.expense import Expense
 from app.models.trip import Trip
@@ -14,7 +14,7 @@ from app.models.trip import Trip
 router = APIRouter(
     prefix="/trips/{trip_id}/expenses",
     tags=["expenses"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(*ROLES_OPERATIVOS))],
 )
 
 

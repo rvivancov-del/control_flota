@@ -37,11 +37,19 @@ function extractErrorMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  token?: string | null,
+  extraHeaders: Record<string, string> = {},
+): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+  for (const [name, value] of Object.entries(extraHeaders)) {
+    headers.set(name, value);
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
@@ -64,9 +72,10 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
 }
 
 export const apiClient = {
-  get: <T>(path: string, token?: string | null) => request<T>(path, { method: "GET" }, token),
-  post: <T>(path: string, body: unknown, token?: string | null) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body) }, token),
+  get: <T>(path: string, token?: string | null, extraHeaders?: Record<string, string>) =>
+    request<T>(path, { method: "GET" }, token, extraHeaders),
+  post: <T>(path: string, body: unknown, token?: string | null, extraHeaders?: Record<string, string>) =>
+    request<T>(path, { method: "POST", body: JSON.stringify(body) }, token, extraHeaders),
   patch: <T>(path: string, body: unknown, token?: string | null) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }, token),
 };

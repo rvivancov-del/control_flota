@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Fuel, MapPin, Truck } from "lucide-react";
 import { despachoApi } from "../services/despachoApi";
 import { ApiError } from "../services/apiClient";
 import type { DespachoInfo, DespachoInput } from "../types/despacho";
+import { forgetCredential, resolveDespachoCredentials } from "../utils/despachoLink";
 import styles from "./DespachoPage.module.css";
 
 const CIUDADES = [
@@ -26,11 +27,15 @@ function pendingKey(driverId: string) {
 /** RF-18: portal móvil del conductor -- se abre desde el QR de la cabina
  * (sin sesión de administrador), muestra el vehículo asignado y registra
  * el viaje. Si falla el envío por falta de señal, guarda el borrador en
- * localStorage para reintentarlo cuando vuelva la conexión. */
+ * localStorage para reintentarlo cuando vuelva la conexión.
+ *
+ * La credencial personal llega en el fragmento de la URL (#token=...), se envía
+ * al servidor en la cabecera X-Despacho-Token y se quita de la barra de direcciones. */
 function DespachoPage() {
-  const [searchParams] = useSearchParams();
-  const driverId = searchParams.get("driverId") ?? "";
-  const qrToken = searchParams.get("token") ?? "";
+  const location = useLocation();
+  const [{ driverId, token: qrToken }] = useState(() =>
+    resolveDespachoCredentials(location.search, location.hash),
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -57,19 +62,29 @@ function DespachoPage() {
 
   useEffect(() => {
     if (!driverId || !qrToken) {
-      setLoadError("Este enlace no es válido — falta información del conductor o del código QR.");
+      setLoadError("Este enlace no es válido — escaneá de nuevo el código QR de tu cabina.");
       setIsLoading(false);
       return;
     }
+    // La credencial ya está en memoria: se quita de la barra de direcciones para que
+    // no se comparta ni quede a la vista al copiar el enlace.
+    window.history.replaceState(null, "", `${window.location.pathname}?driverId=${encodeURIComponent(driverId)}`);
     despachoApi
       .getInfo(driverId, qrToken)
       .then((data) => {
         setInfo(data);
         setForm((f) => ({ ...f, start_mileage_km: data.vehicle_current_mileage_km }));
       })
-      .catch((err) =>
-        setLoadError(err instanceof ApiError ? err.message : "No se pudo cargar la información del vehículo."),
-      )
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          forgetCredential(driverId);
+          setLoadError(
+            "Este código QR ya no es válido: venció o fue reemplazado. Pedile a tu administrador que genere uno nuevo.",
+          );
+        } else {
+          setLoadError(err instanceof ApiError ? err.message : "No se pudo cargar la información del vehículo.");
+        }
+      })
       .finally(() => setIsLoading(false));
 
     setHasOfflineDraft(Boolean(localStorage.getItem(pendingKey(driverId))));

@@ -15,6 +15,8 @@ type AuthContextValue = {
   token: string | null;
   user: User | null;
   isAuthenticated: boolean;
+  /** RF-03: solo el rol admin administra catálogo (vehículos, conductores, QR) y exporta reportes. */
+  isAdmin: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -63,7 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, user, isAuthenticated: Boolean(token), isLoading, login, logout }),
+    () => ({
+      token,
+      user,
+      isAuthenticated: Boolean(token),
+      isAdmin: user?.role.name === "admin",
+      isLoading,
+      login,
+      logout,
+    }),
     [token, user, isLoading],
   );
 

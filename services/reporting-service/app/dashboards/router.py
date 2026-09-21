@@ -8,7 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from app.core.deps import CurrentUser, get_current_user
+from app.core.deps import ADMIN, ROLES_OPERATIVOS, CurrentUser, get_current_user, require_role
 from app.core.fleet_client import FleetClient
 from app.dashboards.export import build_costs_pdf, build_costs_workbook
 from app.dashboards.schemas import (
@@ -34,7 +34,7 @@ from app.dashboards.service import (
     build_vehicle_attention,
 )
 
-router = APIRouter(tags=["dashboards"])
+router = APIRouter(tags=["dashboards"], dependencies=[Depends(require_role(*ROLES_OPERATIVOS))])
 
 T = TypeVar("T")
 
@@ -173,14 +173,14 @@ def maintenance_report(
     return _call_or_502(lambda: build_maintenance_report(client, vehicle_id, date_from, date_to))
 
 
-@router.get("/reports/costs.xlsx")
+@router.get("/reports/costs.xlsx", dependencies=[Depends(require_role(ADMIN))])
 def export_costs_xlsx(
     vehicle_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     client: FleetClient = Depends(_fleet_client),
 ) -> StreamingResponse:
-    """RF-17: reporte de costos por vehículo y periodo, exportado a Excel."""
+    """RF-17: reporte de costos por vehículo y periodo, exportado a Excel (solo admin, RF-03)."""
     summary = _call_or_502(lambda: build_dashboard_summary(client, vehicle_id, date_from, date_to))
     workbook_bytes = build_costs_workbook(summary)
     return StreamingResponse(
@@ -190,14 +190,14 @@ def export_costs_xlsx(
     )
 
 
-@router.get("/reports/costs.pdf")
+@router.get("/reports/costs.pdf", dependencies=[Depends(require_role(ADMIN))])
 def export_costs_pdf(
     vehicle_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     client: FleetClient = Depends(_fleet_client),
 ) -> StreamingResponse:
-    """RF-17: mismo reporte de costos, exportado a PDF."""
+    """RF-17: mismo reporte de costos, exportado a PDF (solo admin, RF-03)."""
     summary = _call_or_502(lambda: build_dashboard_summary(client, vehicle_id, date_from, date_to))
     pdf_bytes = build_costs_pdf(summary)
     return StreamingResponse(

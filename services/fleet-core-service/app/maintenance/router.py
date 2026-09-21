@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import ROLES_OPERATIVOS, require_role
 from app.maintenance import policy
 from app.maintenance.schemas import (
     MaintenanceComplete,
@@ -19,7 +19,7 @@ from app.maintenance.schemas import (
 from app.models.maintenance import MaintenanceRecord
 from app.models.vehicle import Vehicle
 
-router = APIRouter(tags=["maintenance"], dependencies=[Depends(get_current_user)])
+router = APIRouter(tags=["maintenance"], dependencies=[Depends(require_role(*ROLES_OPERATIVOS))])
 
 
 def _read_with_urgency(record: MaintenanceRecord, current_mileage_km: int) -> MaintenanceRead:

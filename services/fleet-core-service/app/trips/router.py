@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import CurrentUser, get_current_user
+from app.core.deps import ROLES_OPERATIVOS, CurrentUser, get_current_user, require_role
 from app.maintenance import policy
 from app.models.driver import Driver
 from app.models.maintenance import MaintenanceRecord
@@ -21,7 +21,9 @@ from app.trips.schemas import (
     TripRevenueUpdate,
 )
 
-router = APIRouter(prefix="/trips", tags=["trips"], dependencies=[Depends(get_current_user)])
+router = APIRouter(
+    prefix="/trips", tags=["trips"], dependencies=[Depends(require_role(*ROLES_OPERATIVOS))]
+)
 
 
 @router.post("", response_model=TripRead, status_code=status.HTTP_201_CREATED)

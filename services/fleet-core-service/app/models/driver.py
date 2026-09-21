@@ -22,9 +22,19 @@ class Driver(Base):
     # despacho móvil (RF-18). No impide registrar un viaje con otro
     # vehículo desde el panel de administración.
     assigned_vehicle_id = Column(UUID(as_uuid=True), ForeignKey("vehicles.id"), nullable=True)
-    # Token opaco para el flujo de despacho por código QR: sustituye al
-    # login JWT normal para un conductor que solo escanea un código pegado
-    # en la cabina — no es una contraseña, es una capacidad de un solo uso
-    # por conductor (RF-18).
-    qr_token = Column(String(64), unique=True, nullable=True)
+    # Credencial personal del portal de despacho por QR (RF-18): sustituye
+    # al login JWT para un conductor que solo escanea el código pegado en su
+    # cabina. Solo se guarda el SHA-256 del token (el token en claro se
+    # muestra una única vez al emitirlo), con fecha de emisión, vigencia y
+    # último uso; NULL = sin credencial (nunca emitida o revocada).
+    # Ver app/despacho/qr_token.py.
+    qr_token_hash = Column(String(64), unique=True, nullable=True)
+    qr_token_issued_at = Column(DateTime(timezone=True), nullable=True)
+    qr_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    qr_token_last_used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    @property
+    def has_qr(self) -> bool:
+        """True si el conductor tiene una credencial de despacho emitida."""
+        return self.qr_token_hash is not None
