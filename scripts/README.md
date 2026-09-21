@@ -40,6 +40,7 @@ paralela con base propia y otros puertos (gateway en `:18080`, frontend en `:151
 
 ```bash
 docker compose build
+python scripts/make_verif_nginx.py         # gateway de verificación con límites de tasa relajados
 docker compose -p flota_verif -f docker-compose.yml -f infra/docker-compose.verif.yml up -d
 docker compose -p flota_verif exec -T postgres psql -U flota -d flota_db -v ON_ERROR_STOP=1 -q < scripts/seed/pilot_dataset.sql
 
@@ -53,4 +54,5 @@ docker compose -p flota_verif down -v      # elimina la pila y su volumen
 ```
 
 `RUN_RATE_LIMIT_TESTS=1` activa la prueba que agota el cupo de peticiones del gateway
-(queda bloqueado ~1 minuto, por eso no corre por defecto).
+(queda bloqueado ~1 minuto, por eso no corre por defecto). Solo tiene sentido contra un gateway
+con los límites reales (`infra/nginx/nginx.conf`), no contra el de verificación, que los relaja.

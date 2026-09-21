@@ -41,9 +41,15 @@ def get_current_user(
 
 
 def require_role(*allowed_roles: str):
-    """RF-03: restringe un router/endpoint a uno o más roles."""
+    """RF-03: restringe un router/endpoint a uno o más roles. RNF-02: quien debe cambiar su
+    contraseña solo puede usar /me y /change-password (que usan get_current_user, no esto)."""
 
     def _dependency(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.must_change_password:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Debe cambiar su contraseña antes de continuar.",
+            )
         if current_user.role.name not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

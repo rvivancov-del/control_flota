@@ -176,3 +176,32 @@
   font-size: 0.82rem;
   margin-bottom: 1rem;
 }
+
+.badgeBloqueado {
+  background: var(--warning-soft);
+  color: var(--warning);
+  margin-left: 0.4rem;
+  text-transform: none;
+}
+
+.note {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin-top: 0.2rem;
+}
+
+.actionsCell {
+  display: flex;
+  gap: 1rem;
+  white-space: nowrap;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  margin-bottom: 1rem;
+}

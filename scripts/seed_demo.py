@@ -11,6 +11,7 @@ despacho por QR: se genera desde el panel (Conductores -> Generar QR).
 NUNCA toca la base viva (`flota_db`): el script se niega a usarla como destino.
 """
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -50,6 +51,8 @@ def main() -> None:
 
     manifest = json.loads((SEED_DIR / "pilot_dataset.manifest.json").read_text(encoding="utf-8"))
     dataset = (SEED_DIR / "pilot_dataset.sql").read_text(encoding="utf-8")
+    if hashlib.sha256(dataset.replace("\r\n", "\n").encode("utf-8")).hexdigest() != manifest["sha256_pilot_dataset_sql"]:
+        sys.exit("pilot_dataset.sql no coincide con el hash del manifiesto: ¿se editó a mano? Reexporte con export_pilot_dataset.py.")
 
     print(f"[1/5] Recreando la base '{db}'…")
     psql("postgres", f"DROP DATABASE IF EXISTS {db} WITH (FORCE)")

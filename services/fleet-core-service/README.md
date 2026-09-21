@@ -59,9 +59,12 @@ de rol o una baja de usuario se refleja cuando expira el JWT vigente (60 min).
 | POST/PATCH | `/drivers`, `/drivers/{id}` | **admin** | RF-05 (el alta devuelve el token del QR, una sola vez) |
 | POST | `/drivers/{id}/regenerate-qr` | **admin** | RF-18 rotación (QR perdido/robado); devuelve el token nuevo, una sola vez |
 | POST | `/drivers/{id}/revoke-qr` | **admin** | RF-18 revocación sin emitir otro |
-| POST/GET | `/trips`, `/trips/{id}` | admin, operador | RF-06, RF-14 |
+| GET | `/drivers/license-types` | admin, operador | RF-05: tipos de licencia vigentes (ANT) que acepta el sistema |
+| POST | `/drivers/{id}/anonymize` | **admin** | RNF-11: suprime los datos personales del conductor (irreversible) |
+| POST/GET | `/trips`, `/trips/{id}` | admin, operador | RF-06; RF-14: `GET /trips` filtra por `vehicle_id`, `driver_id`, `status_filter`, `date_from`, `date_to` |
 | PATCH | `/trips/{id}/start` \| `/cancel` \| `/close` \| `/revenue` | admin, operador | RF-06, RF-07 (estados, Lámina D-05) |
-| POST/GET | `/trips/{id}/expenses` | admin, operador | RF-08, RF-09, RF-10 |
+| POST/GET | `/trips/{id}/expenses` | admin, operador | RF-08, RF-09 (el peaje exige `location`), RF-10 |
+| GET | `/expenses` | admin, operador | RF-14: gastos de todos los viajes, filtrados por `vehicle_id`, `driver_id`, `type`, `date_from`, `date_to` (máx. `limit`=1000 por defecto, 5000) |
 | POST/GET | `/vehicles/{id}/maintenance` | admin, operador | RF-11, RF-12 |
 | PATCH | `/maintenance/{id}/complete` \| `/cost` | admin, operador | RF-11 |
 | GET | `/maintenance/alerts` | admin, operador | RF-13: pendientes vencidos o próximos, con `km_remaining` y `urgency` |
@@ -95,6 +98,13 @@ Ver `app/despacho/qr_token.py` y `app/despacho/router.py`.
 viaje/gasto por HTTP y sumarlos en Python: la base de datos ya sabe sumar
 (`SUM`/`GROUP BY`), así que un año de historia son unas pocas consultas SQL,
 no miles de peticiones.
+
+## Validaciones de dominio y datos personales
+
+- **Licencia (RF-05):** solo se aceptan los tipos vigentes de la ANT (A, A1, B, C, C1, D, E, F, G; `app/drivers/licenses.py`). 'Tipo E' se normaliza a 'E' y los tipos históricos D1/E1 a D/E (Resolución 028-DE-ANT-2021). Los estados de vehículos y conductores y del filtro de viajes también se validan, y la base los respalda con restricciones CHECK.
+- **Peaje (RF-09):** un peaje nuevo debe informar su ubicación (`location`); los 405 peajes históricos de la base piloto no la tienen.
+- **Rectificación y supresión (RNF-11, LOPDP):** el admin puede corregir todos los datos de un conductor, incluida la licencia, y suprimirlos con `POST /drivers/{id}/anonymize`: se borran nombre, licencia, teléfono y credencial de despacho, y el conductor queda inactivo. Los viajes y gastos se conservan como historial contable sin identificar a la persona. Es irreversible y se rechaza si el conductor tiene viajes planificados o en curso. Los conductores (con licencia y teléfono) son visibles para los dos roles operativos, porque el operador los necesita para registrar viajes.
+- **Odómetro (RF-07):** cerrar un viaje nunca hace retroceder el kilometraje del vehículo.
 
 ## Pruebas
 

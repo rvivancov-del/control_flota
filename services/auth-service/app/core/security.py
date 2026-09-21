@@ -23,10 +23,14 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
     return _pwd_context.verify(plain_password, password_hash)
 
 
-def create_access_token(subject: str, role: str) -> str:
-    """Emite un JWT firmado (sub=id de usuario, role, exp) válido por JWT_EXPIRE_MINUTES."""
+def create_access_token(subject: str, role: str, must_change_password: bool = False) -> str:
+    """Emite un JWT firmado (sub=id de usuario, role, exp) válido por JWT_EXPIRE_MINUTES.
+    Si el usuario debe cambiar su contraseña, el token lleva `mcp: true`: fleet-core y reporting
+    (que no consultan la base de usuarios) lo rechazan hasta que se emita un token nuevo."""
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRE_MINUTES)
     payload = {"sub": subject, "role": role, "exp": expires_at}
+    if must_change_password:
+        payload["mcp"] = True
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 

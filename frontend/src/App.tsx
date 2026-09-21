@@ -14,6 +14,8 @@ import TripDetailPage from "./pages/TripDetailPage";
 import MaintenancePage from "./pages/MaintenancePage";
 import UsersPage from "./pages/UsersPage";
 import ReportsPage from "./pages/ReportsPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
+import { CHANGE_PASSWORD_PATH } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 
 /** Restringe una ruta ya protegida (sesión iniciada) a usuarios con rol admin. */
@@ -36,6 +38,15 @@ function App() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={CHANGE_PASSWORD_PATH}
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
           </ProtectedRoute>
         }
       />

@@ -25,6 +25,8 @@ frontend/.env
 
 # Docker
 *.log
+# Generado por scripts/make_verif_nginx.py (pila de verificación)
+infra/nginx/nginx.verif.conf
 
 # Editor / OS
 .vscode/

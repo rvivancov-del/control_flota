@@ -1,5 +1,8 @@
 import os
 
+# Las pruebas unitarias importan app.main, que exige un entorno explícito (RNF-02).
+os.environ.setdefault("APP_ENV", "development")
+
 import pytest
 import requests
 
@@ -49,7 +52,7 @@ def operator_headers(base_url: str, auth_headers: dict):
         requests.patch(
             f"{base_url}/auth/users/{user_id}",
             headers=auth_headers,
-            json={"is_active": True, "password": password, "role_id": role_id},
+            json={"is_active": True, "password": password, "role_id": role_id, "must_change_password": False},
         ).raise_for_status()
     login = requests.post(f"{base_url}/auth/login", json={"username": username, "password": password})
     login.raise_for_status()

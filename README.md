@@ -102,6 +102,9 @@ carpeta — este documento cubre solo la vista de conjunto.
    - PostgreSQL: localhost:5432
    - Usuario inicial: `admin` / `Admin1234` (creado por `auth-service/app/seed.py`
      en el primer arranque — cámbialo antes de cualquier despliegue real).
+   - Los `.env.example` traen `APP_ENV=development`. Sin esa variable (o con otro valor) los servicios
+     **no arrancan** con la clave JWT ni la contraseña de base de datos por defecto, y el sembrado exige
+     una clave inicial propia para el administrador y le pide cambiarla al primer ingreso (RNF-02).
 
 ### Generar una migración nueva (al cambiar un modelo)
 

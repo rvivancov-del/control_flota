@@ -36,11 +36,13 @@ MATRIZ = {
     ("POST", "/vehicles"): ADMIN,
     ("PATCH", "/vehicles/{vehicle_id}"): ADMIN,
     ("GET", "/drivers"): AMBOS,
+    ("GET", "/drivers/license-types"): AMBOS,
     ("GET", "/drivers/{driver_id}"): AMBOS,
     ("POST", "/drivers"): ADMIN,
     ("PATCH", "/drivers/{driver_id}"): ADMIN,
     ("POST", "/drivers/{driver_id}/regenerate-qr"): ADMIN,
     ("POST", "/drivers/{driver_id}/revoke-qr"): ADMIN,
+    ("POST", "/drivers/{driver_id}/anonymize"): ADMIN,
     # Operación del día a día: ambos
     ("POST", "/trips"): AMBOS,
     ("GET", "/trips"): AMBOS,
@@ -56,6 +58,7 @@ MATRIZ = {
     ("GET", "/vehicles/{vehicle_id}/maintenance"): AMBOS,
     ("PATCH", "/maintenance/{maintenance_id}/complete"): AMBOS,
     ("PATCH", "/maintenance/{maintenance_id}/cost"): AMBOS,
+    ("GET", "/expenses"): AMBOS,
     ("GET", "/maintenance/alerts"): AMBOS,
     ("GET", "/maintenance/policy"): AMBOS,
     ("GET", "/analytics/expenses"): AMBOS,
@@ -157,7 +160,16 @@ def test_el_operador_no_puede_administrar_catalogo_ni_qr():
         ("PATCH", "/drivers/{driver_id}"),
         ("PATCH", "/vehicles/{vehicle_id}"),
         ("POST", "/drivers"),
+        ("POST", "/drivers/{driver_id}/anonymize"),
         ("POST", "/drivers/{driver_id}/regenerate-qr"),
         ("POST", "/drivers/{driver_id}/revoke-qr"),
         ("POST", "/vehicles"),
     ]
+
+
+@pytest.mark.parametrize("method,path", sorted(MATRIZ))
+@pytest.mark.parametrize("role", ["admin", "operador"])
+def test_un_token_con_cambio_de_clave_pendiente_no_opera(client, method, path, role):
+    """RNF-02: auth-service marca con `mcp` el token de quien debe cambiar su contraseña."""
+    r = _llamar(client, method, path, _token(role, mcp=True))
+    assert r.status_code == 403 and "cambiar su contraseña" in r.text

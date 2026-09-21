@@ -33,8 +33,13 @@ export type Driver = {
   has_qr: boolean;
   qr_token_expires_at: string | null;
   qr_token_last_used_at: string | null;
+  /** RNF-11: no nulo cuando los datos personales fueron suprimidos (irreversible). */
+  anonymized_at: string | null;
   created_at: string | null;
 };
+
+/** RF-05: tipo de licencia vigente en Ecuador (ANT) que acepta el sistema. */
+export type LicenseType = { code: string; description: string };
 
 /** Respuesta al emitir o rotar la credencial: el único momento en que el token viaja en claro. */
 export type DriverQrIssued = Driver & { qr_token: string };
@@ -44,5 +49,6 @@ export type DriverInput = {
   license_number: string;
   license_type: string;
   phone: string;
-  assigned_vehicle_id?: string;
+  /** null desasigna el vehículo; undefined lo deja como está (edición) o sin asignar (alta). */
+  assigned_vehicle_id?: string | null;
 };

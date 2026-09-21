@@ -57,8 +57,8 @@ def client():
     app.dependency_overrides.pop(dashboards_router._fleet_client, None)
 
 
-def _token(role: str) -> dict:
-    payload = {"sub": str(uuid.uuid4()), "role": role, "exp": datetime.now(timezone.utc) + timedelta(minutes=5)}
+def _token(role: str, **extra) -> dict:
+    payload = {"sub": str(uuid.uuid4()), "role": role, "exp": datetime.now(timezone.utc) + timedelta(minutes=5), **extra}
     return {"Authorization": "Bearer " + jwt.encode(payload, security.JWT_SECRET_KEY, algorithm=security.JWT_ALGORITHM)}
 
 
@@ -104,3 +104,11 @@ def test_cada_rol_recibe_lo_que_la_matriz_dice(client, method, path, role):
 def test_solo_admin_exporta_reportes():
     exclusivos = sorted(k for k, roles in MATRIZ.items() if roles == ADMIN)
     assert exclusivos == [("GET", "/reports/costs.pdf"), ("GET", "/reports/costs.xlsx")]
+
+
+@pytest.mark.parametrize("method,path", sorted(MATRIZ))
+@pytest.mark.parametrize("role", ["admin", "operador"])
+def test_un_token_con_cambio_de_clave_pendiente_no_opera(client, method, path, role):
+    """RNF-02: auth-service marca con `mcp` el token de quien debe cambiar su contraseña."""
+    r = client.request(method, path, headers=_token(role, mcp=True))
+    assert r.status_code == 403 and "cambiar su contraseña" in r.text

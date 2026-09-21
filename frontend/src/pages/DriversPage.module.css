@@ -262,3 +262,39 @@
   line-height: 1.5;
   margin: 0 0 1rem;
 }
+
+.dangerZone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.dangerText {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.dangerButton {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.dangerButton:hover {
+  background: var(--danger-soft);
+}
+
+.dangerButton:disabled {
+  opacity: 0.6;
+}

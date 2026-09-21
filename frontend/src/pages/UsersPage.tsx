@@ -17,7 +17,13 @@ function UsersPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<UserInput>({ username: "", password: "", full_name: "", role_id: "" });
+  const [createForm, setCreateForm] = useState<UserInput>({
+    username: "",
+    password: "",
+    full_name: "",
+    role_id: "",
+    must_change_password: true,
+  });
 
   const [editing, setEditing] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<UserUpdateInput>({});
@@ -40,7 +46,9 @@ function UsersPage() {
   useEffect(load, [token]);
 
   const openCreate = () => {
-    setCreateForm({ username: "", password: "", full_name: "", role_id: roles[0]?.id ?? "" });
+    // Mínimo privilegio: un usuario nuevo parte como operador, salvo que el administrador elija otro rol.
+    const defaultRole = roles.find((r) => r.name === "operador") ?? roles[0];
+    setCreateForm({ username: "", password: "", full_name: "", role_id: defaultRole?.id ?? "", must_change_password: true });
     setFormError(null);
     setIsCreateOpen(true);
   };
@@ -85,6 +93,20 @@ function UsersPage() {
     }
   };
 
+  const handleUnlock = async (u: User) => {
+    if (!token) return;
+    try {
+      await authApi.unlockUser(token, u.id);
+      load();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "No se pudo desbloquear la cuenta.");
+    }
+  };
+
+  /** RNF-03: hasta cuándo sigue bloqueada la cuenta por intentos fallidos (null si no lo está). */
+  const lockedUntil = (u: User) =>
+    u.locked_until && new Date(u.locked_until).getTime() > Date.now() ? new Date(u.locked_until) : null;
+
   return (
     <AppShell title="Usuarios">
       <div className={styles.panel}>
@@ -119,11 +141,22 @@ function UsersPage() {
                     <span className={`${styles.badge} ${u.is_active ? styles.badgeActivo : styles.badgeInactivo}`}>
                       {u.is_active ? "Activo" : "Inactivo"}
                     </span>
+                    {lockedUntil(u) && (
+                      <span className={`${styles.badge} ${styles.badgeBloqueado}`}>
+                        Bloqueado hasta {lockedUntil(u)!.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                    {u.must_change_password && <span className={styles.note}>Debe cambiar su contraseña</span>}
                   </td>
-                  <td>
+                  <td className={styles.actionsCell}>
                     <button type="button" className={styles.editLink} onClick={() => openEdit(u)}>
                       Editar
                     </button>
+                    {lockedUntil(u) && (
+                      <button type="button" className={styles.editLink} onClick={() => handleUnlock(u)}>
+                        Desbloquear
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -184,6 +217,15 @@ function UsersPage() {
                 ))}
               </select>
             </div>
+
+            <label className={styles.checkRow}>
+              <input
+                type="checkbox"
+                checked={createForm.must_change_password ?? false}
+                onChange={(e) => setCreateForm({ ...createForm, must_change_password: e.target.checked })}
+              />
+              Pedir que cambie esta contraseña en su primer ingreso
+            </label>
 
             <div className={styles.formActions}>
               <button type="button" className={styles.cancelButton} onClick={() => setIsCreateOpen(false)}>
@@ -248,7 +290,10 @@ function UsersPage() {
                 title="Mínimo 8 caracteres, con al menos una letra y un número."
                 minLength={8}
               />
-              <span className={styles.fieldHint}>Si la cambiás: mínimo 8 caracteres, con al menos una letra y un número.</span>
+              <span className={styles.fieldHint}>
+                Si la cambias: mínimo 8 caracteres, con al menos una letra y un número. El usuario deberá cambiarla en
+                su próximo ingreso.
+              </span>
             </div>
 
             <div className={styles.formActions}>

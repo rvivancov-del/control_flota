@@ -1,7 +1,7 @@
 """Modelo ORM de la tabla fleet.vehicles."""
 import uuid
 
-from sqlalchemy import Column, DateTime, Integer, String, func
+from sqlalchemy import CheckConstraint, Column, DateTime, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -11,6 +11,9 @@ class Vehicle(Base):
     """Vehículo de la flota (Lámina D-01). RF-04."""
 
     __tablename__ = "vehicles"
+    __table_args__ = (
+        CheckConstraint("status IN ('activo', 'mantenimiento', 'inactivo')", name="ck_vehicles_status"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     plate = Column(String(10), unique=True, nullable=False)

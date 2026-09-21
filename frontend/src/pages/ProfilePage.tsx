@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../services/authApi";
@@ -45,6 +46,12 @@ function ProfilePage() {
             <div className={styles.row}>
               <span className={styles.label}>Estado de la cuenta</span>
               <span className={styles.value}>{user?.is_active ? "Activa" : "Inactiva"}</span>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.label}>Contraseña</span>
+              <Link to="/cambiar-clave" className={styles.value}>
+                Cambiar contraseña
+              </Link>
             </div>
           </>
         )}

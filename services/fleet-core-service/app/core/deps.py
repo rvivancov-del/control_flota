@@ -40,12 +40,20 @@ def get_current_user(
     """Decodifica el JWT del header Authorization; no consulta base de datos."""
     try:
         payload = decode_access_token(credentials.credentials)
-        return CurrentUser(id=payload["sub"], role=payload["role"])
+        user = CurrentUser(id=payload["sub"], role=payload["role"])
     except (JWTError, KeyError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado.",
         )
+    # RNF-02: auth-service marca con `mcp` el token de quien debe cambiar su contraseña; hasta
+    # que la cambie (y reciba un token nuevo) no puede usar este servicio.
+    if payload.get("mcp"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debe cambiar su contraseña antes de continuar.",
+        )
+    return user
 
 
 def require_role(*allowed_roles: str):
