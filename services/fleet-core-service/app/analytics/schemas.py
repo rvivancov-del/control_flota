@@ -33,6 +33,10 @@ class TripAggregateRow(BaseModel):
     distance_km: int
     end_mileage_km: int
     revenue_total: Decimal
+    # Cobertura de ingresos: viajes (y sus km) que tienen ingreso registrado. Permite avisar cuando
+    # el ingreso por km y el margen se calculan con datos incompletos.
+    revenue_trip_count: int = 0
+    revenue_distance_km: int = 0
 
 
 class RouteAggregateRow(BaseModel):
@@ -45,6 +49,10 @@ class RouteAggregateRow(BaseModel):
     trip_count: int
     avg_distance_km: int
     cost_total: Decimal
+    # Gasto de la ruta por tipo (suman cost_total): permite ver el costo sin IVA sin perder el desglose.
+    cost_combustible: Decimal = Decimal("0")
+    cost_peaje: Decimal = Decimal("0")
+    cost_alimentacion: Decimal = Decimal("0")
 
 
 class MaintenanceAggregateRow(BaseModel):
