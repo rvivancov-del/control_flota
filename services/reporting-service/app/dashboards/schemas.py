@@ -1,5 +1,6 @@
 """Esquemas de respuesta de todos los endpoints del dashboard y reportes."""
 import uuid
+from datetime import date
 from decimal import Decimal
 from typing import Optional
 
@@ -13,6 +14,47 @@ class ExpenseBreakdown(BaseModel):
     peaje: Decimal = Decimal("0")
     alimentacion: Decimal = Decimal("0")
     mantenimiento: Decimal = Decimal("0")
+
+
+class CostCategoryLine(BaseModel):
+    """Una de las ocho categorías del costo por kilómetro de Zysińska & Menes (2026)."""
+
+    key: str
+    label: str
+    amount: Decimal
+    per_km: Optional[Decimal] = None
+    share_pct: Optional[Decimal] = None
+
+
+class CostStructure(BaseModel):
+    """Costos e indicadores de un vehículo (o de la flota) en el período — Fase 3.
+
+    Ct = Cv + Cf (Poliak et al., 2025); costo, ingreso y utilidad por km y margen (Zysińska & Menes,
+    2026); LP y ROP (Kutac et al., 2022). Los campos que dependen de los costos fijos y de personal son
+    None cuando no se incluyen (rol operador o período sin fechas): no se muestra un total incompleto
+    como si fuera el total."""
+
+    iva_mode: str
+    fixed_included: bool
+    distance_km: int
+    variable_cost: Decimal  # Cv
+    fixed_cost: Optional[Decimal] = None  # Cf
+    total_cost: Optional[Decimal] = None  # Ct
+    cv_per_km: Optional[Decimal] = None
+    cf_per_km: Optional[Decimal] = None
+    ct_per_km: Optional[Decimal] = None
+    revenue: Optional[Decimal] = None
+    revenue_per_km: Optional[Decimal] = None
+    # % de los km del período que tienen ingreso registrado: por debajo de 100 el margen se subestima.
+    revenue_coverage_pct: Optional[Decimal] = None
+    profit: Optional[Decimal] = None  # U = R − Ct
+    profit_per_km: Optional[Decimal] = None
+    margin_pct: Optional[Decimal] = None  # U / R × 100
+    contribution_margin: Optional[Decimal] = None  # R − Cv
+    personnel_cost: Optional[Decimal] = None  # PC
+    labour_productivity: Optional[Decimal] = None  # R / PC
+    return_on_personnel_cost_pct: Optional[Decimal] = None  # U / PC × 100
+    composition: list[CostCategoryLine] = []
 
 
 class VehicleSummary(BaseModel):
@@ -42,19 +84,35 @@ class VehicleSummary(BaseModel):
     active_days: Optional[int] = None
     period_days: Optional[int] = None
     utilization_pct: Optional[Decimal] = None
+    # Fase 3: costos e indicadores completos del vehículo (variables y, para el admin, fijos).
+    costs: Optional[CostStructure] = None
 
 
 class DashboardSummary(BaseModel):
-    """RF-15: costo total por vehículo (y de toda la flota)."""
+    """RF-15: costo total por vehículo (y de toda la flota).
+
+    `fleet_total_cost` y `total_cost` de cada vehículo son el gasto operativo (costos variables), acotado
+    por `category` si se pidió; `fleet_total_margin` es el margen de contribución (ingreso − costos
+    variables) y NO depende del filtro de categoría. El costo total y la utilidad completos están en
+    `fleet_costs` y en `costs` de cada vehículo."""
 
     vehicles: list[VehicleSummary]
     fleet_total_cost: Decimal
     fleet_total_revenue: Optional[Decimal] = None
     fleet_total_margin: Optional[Decimal] = None
+    iva_mode: str = "bruto"
+    fleet_costs: Optional[CostStructure] = None
+    # None = se incluyeron los costos fijos y de personal; "rol" = el rol no los ve; "sin_periodo" = falta el período.
+    fixed_costs_omitted_reason: Optional[str] = None
+    # Personal de conductores sin kilómetros en el período: cuenta en el total de la flota, en ningún vehículo.
+    unallocated_personnel_cost: Optional[Decimal] = None
 
 
 class TrendPoint(BaseModel):
     period_label: str
+    # Primer día del período del punto: permite distinguir los períodos completos del que está en curso
+    # (p. ej. para estimar la variabilidad histórica sin contar un período a medias).
+    period_start: Optional[date] = None
     total_cost: Decimal
     breakdown: ExpenseBreakdown
 
@@ -64,6 +122,7 @@ class TrendResponse(BaseModel):
     time' de los ERP de flota, en vez de un solo total estático)."""
 
     points: list[TrendPoint]
+    iva_mode: str = "bruto"
 
 
 class ExpenseRecord(BaseModel):
@@ -216,6 +275,9 @@ class DriverSummary(BaseModel):
     margin: Optional[Decimal] = None
     fuel_liters: Decimal = Decimal("0")
     fuel_efficiency_l_100km: Optional[Decimal] = None
+    # Solo admin: costo de personal del conductor en el período y ingreso que genera por cada dólar de personal (LP).
+    personnel_cost: Optional[Decimal] = None
+    labour_productivity: Optional[Decimal] = None
 
 
 class DriverSummaryResponse(BaseModel):
@@ -225,6 +287,8 @@ class DriverSummaryResponse(BaseModel):
 
     drivers: list[DriverSummary]
     fleet_total_cost: Decimal
+    iva_mode: str = "bruto"
+    personnel_included: bool = False
 
 
 class RouteSummary(BaseModel):
@@ -242,3 +306,4 @@ class RouteSummary(BaseModel):
 
 class RouteSummaryResponse(BaseModel):
     routes: list[RouteSummary]
+    iva_mode: str = "bruto"

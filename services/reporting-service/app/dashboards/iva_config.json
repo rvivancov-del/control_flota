@@ -1,0 +1,18 @@
+{
+  "version": "0.1.0-provisional",
+  "estado": "pendiente_de_verificacion_contable",
+  "procedencia": "Tarifas copiadas de frontend/src/utils/tax.ts, que las atribuye a la LRTI (Art. 56) y a una circular del SRI de diciembre de 2025. No las ha confirmado un contador ni el SRI, en especial el tratamiento del combustible y del seguro. Los costos fijos y de personal se dejan en 0 %. Sustituir por las tarifas que confirme el contador y pasar el estado a 'verificado_por_contador'.",
+  "modo_por_defecto": "bruto",
+  "tarifas": {
+    "combustible": 0,
+    "peaje": 0,
+    "alimentacion": 0.15,
+    "mantenimiento": 0.15,
+    "depreciacion": 0,
+    "capital": 0,
+    "seguro": 0,
+    "impuestos": 0,
+    "otros": 0,
+    "personal": 0
+  }
+}

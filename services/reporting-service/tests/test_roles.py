@@ -33,6 +33,7 @@ MATRIZ = {
     ("GET", "/dashboard/maintenance-status"): AMBOS,
     ("GET", "/dashboard/maintenance-priority"): AMBOS,
     ("GET", "/dashboard/vehicle-attention"): AMBOS,
+    ("GET", "/dashboard/cost-model"): AMBOS,
     ("GET", "/reports/maintenance"): AMBOS,
     # Exportación de reportes: solo admin
     ("GET", "/reports/costs.xlsx"): ADMIN,
