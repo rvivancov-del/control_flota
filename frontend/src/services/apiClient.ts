@@ -37,6 +37,14 @@ function extractErrorMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Evento que se emite cuando el servidor rechaza el token de la sesión (venció o la cuenta ya no es
+ * válida): AuthContext cierra la sesión y ProtectedRoute lleva a /login. */
+export const SESSION_EXPIRED_EVENT = "flotacontrol:session-expired";
+
+// Mensajes con los que los servicios responden 401 por un token inválido. Un 401 de otro tipo (p. ej.
+// "La contraseña actual no es correcta.") NO cierra la sesión.
+const SESSION_REJECTED_DETAILS = ["Token inválido o expirado.", "Usuario inválido o inactivo."];
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -65,6 +73,9 @@ async function request<T>(
       detail = extractErrorMessage(body, detail);
     } catch {
       // sin cuerpo JSON, se usa el statusText
+    }
+    if (response.status === 401 && token && SESSION_REJECTED_DETAILS.includes(detail)) {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
     throw new ApiError(response.status, detail);
   }

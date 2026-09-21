@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import TruckIcon from "../components/TruckIcon";
-import { useAuth } from "../context/AuthContext";
+import { SESSION_EXPIRED_FLAG, useAuth } from "../context/AuthContext";
 import { ApiError } from "../services/apiClient";
 import styles from "./LoginPage.module.css";
 
@@ -14,6 +14,22 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Aviso de una sola vez cuando se llega aquí porque la sesión venció. Se lee sin efectos
+  // secundarios (React puede ejecutar el inicializador dos veces) y se borra tras montar.
+  const [sessionExpired] = useState(() => {
+    try {
+      return sessionStorage.getItem(SESSION_EXPIRED_FLAG) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(SESSION_EXPIRED_FLAG);
+    } catch {
+      // nada que borrar
+    }
+  }, []);
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
@@ -76,6 +92,9 @@ function LoginPage() {
           />
         </div>
 
+        {sessionExpired && !error && (
+          <p className={styles.error}>Tu sesión venció. Ingresa de nuevo para continuar.</p>
+        )}
         {error && <p className={styles.error}>{error}</p>}
 
         <button type="submit" className={styles.submit} disabled={isSubmitting}>
