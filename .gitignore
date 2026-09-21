@@ -31,3 +31,6 @@ frontend/.env
 .idea/
 .DS_Store
 Thumbs.db
+
+# Artefactos de compilacion de TypeScript
+*.tsbuildinfo
