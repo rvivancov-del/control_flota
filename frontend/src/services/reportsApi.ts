@@ -11,6 +11,7 @@ import type {
   ReportFilters,
   RouteSummaryResponse,
   TrendResponse,
+  VehicleAttentionResponse,
 } from "../types/reports";
 
 // Mismo criterio que apiClient.ts: usar el host real de la pagina, no un
@@ -54,6 +55,13 @@ export const reportsApi = {
 
   maintenancePriority: (token: string, filters: ReportFilters = {}) =>
     apiClient.get<MaintenancePriorityResponse>(`/reports/dashboard/maintenance-priority${queryString(filters)}`, token),
+
+  /** RF-19: ranking de atención por vehículo; los pesos salen de la razón de Saaty elegida. */
+  vehicleAttention: (token: string, urgencyOverCost: number, filters: ReportFilters = {}) => {
+    const params = buildParams(filters);
+    params.set("urgency_over_cost", String(urgencyOverCost));
+    return apiClient.get<VehicleAttentionResponse>(`/reports/dashboard/vehicle-attention?${params.toString()}`, token);
+  },
 
   drivers: (token: string, filters: ReportFilters = {}) =>
     apiClient.get<DriverSummaryResponse>(`/reports/dashboard/drivers${queryString(filters)}`, token),

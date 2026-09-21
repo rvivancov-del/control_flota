@@ -139,8 +139,8 @@ class MaintenancePriorityItem(BaseModel):
 
 class AhpCriteriaWeights(BaseModel):
     """Pesos de criterios derivados por AHP (Saaty, 1980) a partir de la
-    matriz de comparación pareada fija en ahp.py, y el ratio de consistencia
-    que valida que esos pesos no son arbitrarios (CR < 0.10)."""
+    matriz de comparación pareada de ahp_config.json, y el ratio de
+    consistencia que valida que la matriz es aceptable (CR < 0.10)."""
 
     seguridad: float
     urgencia: float
@@ -149,9 +149,49 @@ class AhpCriteriaWeights(BaseModel):
     is_consistent: bool
 
 
+class AhpConfigInfo(BaseModel):
+    """Procedencia de los juicios que produjeron el ranking: sin esto un
+    lector no puede distinguir pesos de un panel de expertos de pesos
+    provisionales escritos por el desarrollador."""
+
+    version: str
+    estado: str
+    procedencia: str
+    costo_direccion: str
+
+
 class MaintenancePriorityResponse(BaseModel):
     items: list[MaintenancePriorityItem]
     weights: AhpCriteriaWeights
+    config: AhpConfigInfo
+
+
+class VehicleAttentionItem(BaseModel):
+    """RF-19: un vehículo con su costo relativo, su peor urgencia de
+    mantenimiento y el puntaje de atención que combina ambos."""
+
+    vehicle_id: uuid.UUID
+    vehicle_plate: str
+    total_cost: Decimal
+    cost_score: float
+    urgency_score: float
+    worst_urgency: str  # "vencido" | "proximo" | "normal" | "sin_pendientes"
+    attention_score: float
+
+
+class VehicleAttentionWeights(BaseModel):
+    """Pesos AHP de dos criterios para la razón de importancia elegida.
+    consistency_ratio es 0 por construcción (matriz recíproca 2x2)."""
+
+    urgencia: float
+    costo: float
+    urgency_over_cost: float
+    consistency_ratio: float
+
+
+class VehicleAttentionResponse(BaseModel):
+    items: list[VehicleAttentionItem]
+    weights: VehicleAttentionWeights
 
 
 class DriverExpenseBreakdown(BaseModel):
