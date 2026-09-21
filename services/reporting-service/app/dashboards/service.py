@@ -500,8 +500,9 @@ def build_maintenance_status(client: FleetClient, vehicle_id: Optional[str] = No
                 continue
 
             scheduled = record.get("scheduled_mileage_km")
-            remaining = (scheduled - current_km) if scheduled is not None else None
-            urgency = alert_policy.classify_urgency(remaining)
+            # km restantes y urgencia los calcula fleet-core (RF-13): aquí no se decide.
+            remaining = record.get("km_remaining")
+            urgency = record.get("urgency") or alert_policy.NORMAL
 
             alerts.append(
                 MaintenanceAlertDetail(
@@ -516,8 +517,7 @@ def build_maintenance_status(client: FleetClient, vehicle_id: Optional[str] = No
                 )
             )
 
-    urgency_rank = {"vencido": 0, "proximo": 1, "normal": 2}
-    alerts.sort(key=lambda a: (urgency_rank[a.urgency], a.km_remaining if a.km_remaining is not None else 10**9))
+    alerts.sort(key=lambda a: (alert_policy.RANK[a.urgency], a.km_remaining if a.km_remaining is not None else 10**9))
 
     mix = [
         MaintenanceMixEntry(category=category, count=v["count"], total_cost=v["total_cost"])
@@ -544,7 +544,7 @@ def build_maintenance_priority(
     if vehicle_id:
         vehicles = [v for v in vehicles if v["id"] == vehicle_id]
     plate_by_id = {v["id"]: v["plate"] for v in vehicles}
-    current_km_by_id = {v["id"]: v["current_mileage_km"] for v in vehicles}
+    policy = client.maintenance_policy()
 
     # Costo historico promedio por tipo de mantenimiento, agregado sobre
     # TODA la flota (no solo el vehiculo en cuestion) para tener una muestra
@@ -563,16 +563,14 @@ def build_maintenance_priority(
     items: list[MaintenancePriorityItem] = []
     for vehicle in vehicles:
         vid = vehicle["id"]
-        current_km = current_km_by_id[vid]
         for record in client.list_maintenance(vid):
             if record["status"] != "pendiente":
                 continue
-            scheduled = record.get("scheduled_mileage_km")
-            km_remaining = (scheduled - current_km) if scheduled is not None else None
+            km_remaining = record.get("km_remaining")  # lo calcula fleet-core (RF-13)
 
             mtype = record["maintenance_type"]
             seguridad = ahp.safety_score(mtype)
-            urgencia = ahp.urgency_score(km_remaining)
+            urgencia = ahp.urgency_score(km_remaining, alert_policy.threshold_for(policy, mtype))
             costo = ahp.cost_score(mtype, avg_cost_by_type)
             score = ahp.priority_score(seguridad, urgencia, costo)
 
@@ -583,6 +581,7 @@ def build_maintenance_priority(
                     maintenance_type=mtype,
                     category=record["category"],
                     km_remaining=km_remaining,
+                    urgency=record.get("urgency") or alert_policy.NORMAL,
                     seguridad_score=round(seguridad, 4),
                     urgencia_score=round(urgencia, 4),
                     costo_score=round(costo, 4),
@@ -632,13 +631,11 @@ def build_vehicle_attention(
 
     worst_score: dict[str, float] = {}
     worst_class: dict[str, str] = {}
-    class_rank = {alert_policy.VENCIDO: 0, alert_policy.PROXIMO: 1, alert_policy.NORMAL: 2}
     for item in pending.items:
         key = str(item.vehicle_id)
         worst_score[key] = max(worst_score.get(key, 0.0), item.urgencia_score)
-        level = alert_policy.classify_urgency(item.km_remaining)
-        if key not in worst_class or class_rank[level] < class_rank[worst_class[key]]:
-            worst_class[key] = level
+        if key not in worst_class or alert_policy.RANK[item.urgency] < alert_policy.RANK[worst_class[key]]:
+            worst_class[key] = item.urgency
 
     vehicles = [
         {"vehicle_id": str(v.vehicle_id), "plate": v.plate, "total_cost": v.total_cost} for v in summary.vehicles

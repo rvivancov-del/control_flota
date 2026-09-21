@@ -38,6 +38,7 @@ import {
   trendPlotHeight,
 } from "../charts/expensePlots";
 import { useAuth } from "../context/AuthContext";
+import { fleetApi } from "../services/fleetApi";
 import { reportsApi } from "../services/reportsApi";
 import { NAV_ITEMS } from "../nav";
 import type { DashboardSummary } from "../types/dashboard";
@@ -53,7 +54,6 @@ import type {
 import styles from "./DashboardPage.module.css";
 
 const POLL_INTERVAL_MS = 20_000;
-const NEAR_DUE_KM = 1500;
 /** Períodos históricos mínimos para estimar un rango de incertidumbre de la
  * proyección — con menos, la variabilidad observada es ruido, no una señal. */
 const MIN_PERIODS_FOR_RANGE = 3;
@@ -195,6 +195,8 @@ function DashboardPage() {
   const [driverSummary, setDriverSummary] = useState<DriverSummaryResponse | null>(null);
   const [routeSummary, setRouteSummary] = useState<RouteSummaryResponse | null>(null);
   const [attention, setAttention] = useState<VehicleAttentionResponse | null>(null);
+  // Umbral 'próximo' (km) de la política única de RF-13, que decide fleet-core-service.
+  const [proximoKm, setProximoKm] = useState<number | null>(null);
   const [category, setCategory] = useState<ExpenseCategory | "">("");
   const [granularity, setGranularity] = useState<Granularity>("month");
   const [periodOffset, setPeriodOffset] = useState(0);
@@ -254,6 +256,14 @@ function DashboardPage() {
       clearInterval(interval);
     };
   }, [token, category, granularity, periodOffset]);
+
+  useEffect(() => {
+    if (!token) return;
+    fleetApi
+      .maintenancePolicy(token)
+      .then((policy) => setProximoKm(policy.proximo_km))
+      .catch(() => setProximoKm(null));
+  }, [token]);
 
   // RF-19: el ranking de atención lo calcula el backend (mismo motor y misma
   // escala de urgencia que RF-20); se vuelve a pedir al mover la razón de Saaty.
@@ -588,7 +598,7 @@ function DashboardPage() {
                 </div>
               ))
             ) : (
-              <p className={styles.empty}>{isLoading ? "Cargando…" : `Todo al día — ningún mantenimiento a menos de ${NEAR_DUE_KM.toLocaleString("es-EC")} km.`}</p>
+              <p className={styles.empty}>{isLoading ? "Cargando…" : proximoKm != null ? `Todo al día — ningún mantenimiento a menos de ${proximoKm.toLocaleString("es-EC")} km.` : "Todo al día — ningún mantenimiento próximo."}</p>
             )}
           </div>
 

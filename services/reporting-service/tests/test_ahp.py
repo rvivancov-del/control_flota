@@ -46,27 +46,37 @@ def test_los_pesos_respetan_las_comparaciones_de_la_matriz():
                 assert w[ci] > w[cj]
 
 
+PROXIMO = 1500  # umbral 'próximo' de fleet-core (RF-13) que las pruebas pasan explícito
+
+
 def test_urgencia_vencido_es_maxima():
-    assert ahp.urgency_score(-500) == 1.0
-    assert ahp.urgency_score(0) == 1.0
+    assert ahp.urgency_score(-500, PROXIMO) == 1.0
+    assert ahp.urgency_score(0, PROXIMO) == 1.0
 
 
 def test_urgencia_decae_con_kilometraje_restante():
-    cercano = ahp.urgency_score(200)
-    lejano = ahp.urgency_score(1400)
-    muy_lejano = ahp.urgency_score(ahp.CONFIG.urgencia.sin_urgencia_km + 2000)
+    cercano = ahp.urgency_score(200, PROXIMO)
+    lejano = ahp.urgency_score(1400, PROXIMO)
+    muy_lejano = ahp.urgency_score(int(PROXIMO * ahp.CONFIG.urgencia.sin_urgencia_multiplo) + 2000, PROXIMO)
     assert cercano > lejano > muy_lejano
     assert muy_lejano == 0.0
 
 
 def test_urgencia_sin_kilometraje_programado_usa_el_puntaje_configurado():
-    assert ahp.urgency_score(None) == ahp.CONFIG.urgencia.puntaje_sin_kilometraje
+    assert ahp.urgency_score(None, PROXIMO) == ahp.CONFIG.urgencia.puntaje_sin_kilometraje
 
 
 def test_urgencia_en_el_umbral_proximo_vale_el_puntaje_configurado():
     u = ahp.CONFIG.urgencia
-    assert ahp.urgency_score(u.proximo_km) == pytest.approx(u.puntaje_en_proximo)
-    assert ahp.urgency_score(u.sin_urgencia_km) == pytest.approx(0.0)
+    assert ahp.urgency_score(PROXIMO, PROXIMO) == pytest.approx(u.puntaje_en_proximo)
+    assert ahp.urgency_score(int(PROXIMO * u.sin_urgencia_multiplo), PROXIMO) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_el_umbral_proximo_escala_la_curva():
+    """Con otro umbral (política de fleet-core) la curva se desplaza en proporción."""
+    u = ahp.CONFIG.urgencia
+    assert ahp.urgency_score(3000, 3000) == pytest.approx(u.puntaje_en_proximo)
+    assert ahp.urgency_score(500, 1000) == pytest.approx(ahp.urgency_score(1500, 3000))
 
 
 def _urgencia_implementacion_previa(km, umbral=1500):
@@ -80,12 +90,13 @@ def _urgencia_implementacion_previa(km, umbral=1500):
     return max(0.0, 0.5 - 0.5 * ((km - umbral) / (umbral * 3)))
 
 
-def test_externalizar_la_configuracion_no_cambio_la_curva_de_urgencia():
-    """Regresión: con la configuración provisional (1500/6000 km, 0.5, 0.3) el
-    puntaje es idéntico al de la implementación previa en todo el rango."""
-    cfg = ahp.UrgencyConfig(proximo_km=1500, sin_urgencia_km=6000, puntaje_en_proximo=0.5, puntaje_sin_kilometraje=0.3)
+@pytest.mark.parametrize("umbral", [1000, 1500, 3000])
+def test_externalizar_la_configuracion_no_cambio_la_curva_de_urgencia(umbral):
+    """Regresión: con la configuración provisional (múltiplo 4, 0.5 en 'próximo',
+    0.3 sin kilometraje) el puntaje es idéntico al de la implementación previa."""
+    cfg = ahp.UrgencyConfig(sin_urgencia_multiplo=4, puntaje_en_proximo=0.5, puntaje_sin_kilometraje=0.3)
     for km in [None, *range(-500, 9000, 25)]:
-        assert ahp.urgency_score(km, cfg) == pytest.approx(_urgencia_implementacion_previa(km), abs=1e-12)
+        assert ahp.urgency_score(km, umbral, cfg) == pytest.approx(_urgencia_implementacion_previa(km, umbral), abs=1e-12)
 
 
 def test_costo_usa_historico_real_cuando_existe():
@@ -118,6 +129,6 @@ def test_tipo_desconocido_cae_en_otro():
 def test_priority_score_prioriza_frenos_vencido_sobre_aceite_lejano():
     """Caso de uso real que motiva RF-20: un mantenimiento de frenos vencido
     debe rankear por encima de un cambio de aceite que todavía falta mucho."""
-    frenos_vencido = ahp.priority_score(ahp.safety_score("frenos"), ahp.urgency_score(-100), ahp.cost_score("frenos", {}))
-    aceite_lejano = ahp.priority_score(ahp.safety_score("aceite"), ahp.urgency_score(5000), ahp.cost_score("aceite", {}))
+    frenos_vencido = ahp.priority_score(ahp.safety_score("frenos"), ahp.urgency_score(-100, PROXIMO), ahp.cost_score("frenos", {}))
+    aceite_lejano = ahp.priority_score(ahp.safety_score("aceite"), ahp.urgency_score(5000, PROXIMO), ahp.cost_score("aceite", {}))
     assert frenos_vencido > aceite_lejano

@@ -2,7 +2,11 @@
   "version": "0.1.0-provisional",
   "estado": "provisional_desarrollador",
   "procedencia": "Valores escritos por el desarrollador durante el prototipo; NO provienen de expertos. Se reemplazan con la agregación de 07_MATRICES_DE_ANALISIS/ahp_juicios_expertos.xlsx (Fase 2 del plan de coherencia) y este archivo pasa a estado 'expertos_n=<n>'.",
-  "criterios": ["seguridad", "urgencia", "costo"],
+  "criterios": [
+    "seguridad",
+    "urgencia",
+    "costo"
+  ],
   "comparaciones_saaty": {
     "seguridad_vs_urgencia": 3,
     "seguridad_vs_costo": 5,
@@ -28,9 +32,9 @@
     }
   },
   "urgencia": {
-    "proximo_km": 1500,
-    "sin_urgencia_km": 6000,
+    "sin_urgencia_multiplo": 4,
     "puntaje_en_proximo": 0.5,
     "puntaje_sin_kilometraje": 0.3
-  }
+  },
+  "nota_urgencia": "El umbral 'próximo' (km) NO se define aquí: lo entrega fleet-core-service (política única de RF-13). La curva de urgencia se expresa en múltiplos de ese umbral: vale 1.0 vencido, 'puntaje_en_proximo' al llegar al umbral y 0 a 'sin_urgencia_multiplo' veces el umbral."
 }

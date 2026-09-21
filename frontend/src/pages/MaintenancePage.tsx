@@ -4,6 +4,7 @@ import AppShell from "../components/AppShell";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { fleetApi } from "../services/fleetApi";
+import { describeUrgency } from "../utils/maintenanceAlert";
 import { reportsApi } from "../services/reportsApi";
 import { ApiError } from "../services/apiClient";
 import type { Vehicle } from "../types/fleet";
@@ -150,11 +151,11 @@ function MaintenancePage() {
     <AppShell title="Mantenimiento">
       {alerts.length > 0 && (
         <div className={styles.alertBanner}>
-          <div className={styles.alertTitle}>⚠ Mantenimientos vencidos por kilometraje</div>
+          <div className={styles.alertTitle}>⚠ Mantenimientos vencidos o próximos por kilometraje</div>
           {alerts.map((a) => (
             <div key={a.id} className={styles.alertItem}>
               {a.plate} — {TYPE_LABELS[a.maintenance_type] ?? a.maintenance_type} (programado a{" "}
-              {a.scheduled_mileage_km?.toLocaleString("es-EC")} km)
+              {a.scheduled_mileage_km?.toLocaleString("es-EC")} km) — {describeUrgency(a.urgency, a.km_remaining)}
             </div>
           ))}
         </div>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import CurrentUser, get_current_user
+from app.maintenance import policy
 from app.models.driver import Driver
 from app.models.maintenance import MaintenanceRecord
 from app.models.trip import Trip
@@ -128,8 +129,8 @@ def close_trip(
     trip_id: uuid.UUID, payload: TripClose, db: Session = Depends(get_db)
 ) -> TripCloseResult:
     """RF-07 + RF-13 (Láminas D-03 y D-06): cierra el viaje, actualiza el
-    kilometraje del vehículo y evalúa qué mantenimientos quedaron vencidos
-    por kilometraje."""
+    kilometraje del vehículo y evalúa qué mantenimientos quedaron vencidos o
+    próximos a vencer por kilometraje (política en app/maintenance/policy.py)."""
     trip = db.get(Trip, trip_id)
     if trip is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Viaje no encontrado.")
@@ -152,21 +153,28 @@ def close_trip(
     vehicle = db.get(Vehicle, trip.vehicle_id)
     vehicle.current_mileage_km = payload.end_mileage_km
 
-    alerts = (
+    pending = (
         db.query(MaintenanceRecord)
         .filter(
             MaintenanceRecord.vehicle_id == vehicle.id,
             MaintenanceRecord.status == "pendiente",
             MaintenanceRecord.scheduled_mileage_km.isnot(None),
-            MaintenanceRecord.scheduled_mileage_km <= vehicle.current_mileage_km,
         )
         .all()
     )
+    alerts = []
+    for record in pending:
+        remaining, urgency = policy.assess(record, vehicle.current_mileage_km)
+        if urgency in (policy.VENCIDO, policy.PROXIMO):
+            brief = MaintenanceAlertBrief.model_validate(record)
+            brief.km_remaining, brief.urgency = remaining, urgency
+            alerts.append(brief)
+    alerts.sort(key=lambda a: (a.urgency != policy.VENCIDO, a.km_remaining))
 
     db.commit()
     db.refresh(trip)
 
     return TripCloseResult(
         trip=TripRead.model_validate(trip),
-        maintenance_alerts=[MaintenanceAlertBrief.model_validate(a) for a in alerts],
+        maintenance_alerts=alerts,
     )

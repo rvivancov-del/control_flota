@@ -131,6 +131,7 @@ class MaintenancePriorityItem(BaseModel):
     maintenance_type: str
     category: str
     km_remaining: Optional[int]
+    urgency: str = "normal"  # "vencido" | "proximo" | "normal", según la política de fleet-core (RF-13)
     seguridad_score: float
     urgencia_score: float
     costo_score: float

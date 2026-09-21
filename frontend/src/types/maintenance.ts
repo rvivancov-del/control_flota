@@ -14,6 +14,18 @@ export type MaintenanceRecord = {
   performed_at: string | null;
   status: MaintenanceStatus;
   created_at: string | null;
+  /** RF-13: solo en mantenimientos pendientes; los calcula fleet-core-service. */
+  km_remaining?: number | null;
+  urgency?: "vencido" | "proximo" | "normal" | null;
+};
+
+/** RF-13: política de alertas vigente y su procedencia (GET /fleet/maintenance/policy). */
+export type MaintenancePolicy = {
+  version: string;
+  estado: string;
+  procedencia: string;
+  proximo_km: number;
+  proximo_km_por_tipo: Record<string, number>;
 };
 
 export type MaintenanceInput = {

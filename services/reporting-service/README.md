@@ -21,7 +21,7 @@ app/
     ├── ahp.py              # RF-19/RF-20: Analytic Hierarchy Process (Saaty, 1980)
     ├── ahp_config.json      # juicios del AHP con su estado y procedencia (matriz, criticidad, costos, curva de urgencia)
     ├── ahp_analysis.py       # análisis de sensibilidad del ranking (tau de Kendall, perturbación de pesos)
-    ├── alert_policy.py        # RF-13: clasifica vencido / próximo / normal con el umbral de la configuración
+    ├── alert_policy.py        # RF-13: niveles y umbral por tipo; la clasificación la decide fleet-core-service
     ├── service.py            # agregación en memoria de lo que ya llega sumado por SQL
     ├── export.py              # RF-17: genera .xlsx (openpyxl) y .pdf (reportlab)
     └── router.py               # todos los GET /dashboard/* y /reports/*
@@ -62,7 +62,9 @@ Un archivo inválido o con CR >= 0.10 detiene el arranque.
 `dashboard/vehicle-attention` (RF-19) usa el mismo motor con dos criterios:
 la razón de Saaty `urgency_over_cost` (1/9 a 9) da los pesos `a/(a+1)` y
 `1/(a+1)`, y la urgencia de cada vehículo es la peor de sus mantenimientos
-pendientes con la misma curva de urgencia de RF-20. Una matriz 2x2 es
+pendientes con la misma curva de urgencia de RF-20. La curva se ancla en el
+umbral 'próximo' que entrega fleet-core-service (`GET /maintenance/policy`) y
+se expresa en múltiplos de ese umbral (`urgencia.sin_urgencia_multiplo`). Una matriz 2x2 es
 consistente por construcción (CR = 0), así que no aporta verificación real.
 
 `app/dashboards/ahp_analysis.py` mide la sensibilidad del ranking a cambios de

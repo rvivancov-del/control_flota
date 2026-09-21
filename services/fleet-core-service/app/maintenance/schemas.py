@@ -53,3 +53,16 @@ class MaintenanceRead(BaseModel):
     performed_at: Optional[date]
     status: str
     created_at: Optional[datetime]
+    # RF-13: solo en mantenimientos pendientes; los calcula app/maintenance/policy.py.
+    km_remaining: Optional[int] = None
+    urgency: Optional[str] = None  # "vencido" | "proximo" | "normal"
+
+
+class MaintenancePolicyRead(BaseModel):
+    """Política de alertas vigente (RF-13) y su procedencia."""
+
+    version: str
+    estado: str
+    procedencia: str
+    proximo_km: int
+    proximo_km_por_tipo: dict[str, int]

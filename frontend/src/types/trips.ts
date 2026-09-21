@@ -42,6 +42,8 @@ export type MaintenanceAlertBrief = {
   maintenance_type: string;
   category: string;
   scheduled_mileage_km: number | null;
+  km_remaining?: number | null;
+  urgency?: "vencido" | "proximo" | null;
 };
 
 export type TripCloseResult = {

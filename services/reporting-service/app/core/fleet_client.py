@@ -49,6 +49,10 @@ class FleetClient:
     def list_maintenance_alerts(self) -> list[dict]:
         return self._get("/maintenance/alerts")
 
+    def maintenance_policy(self) -> dict:
+        """Política de alertas de RF-13 (umbral 'próximo'), única fuente en fleet-core."""
+        return self._get("/maintenance/policy")
+
     def _period_params(self, date_from: Optional[date], date_to: Optional[date]) -> dict:
         params: dict = {}
         if date_from is not None:
