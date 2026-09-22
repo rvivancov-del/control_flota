@@ -1,0 +1,13 @@
+# Usado cuando el contexto de compilación es la raíz del repositorio (frontend/Dockerfile.prod, que
+# necesita copiar infra/nginx/frontend.conf además del código de frontend/). Los demás servicios
+# compilan con su propia carpeta como contexto y no leen este archivo.
+.git/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.venv/
+**/venv/
+**/node_modules/
+frontend/dist/
+infra/nginx/certs/
+*.log

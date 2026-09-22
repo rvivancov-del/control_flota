@@ -1,17 +1,32 @@
-FROM python:3.12-slim
-
+# Etapa de compilación: instala las dependencias en el HOME del usuario ("pip install --user"), sin
+# dejar la caché de pip ni las herramientas de compilación en la imagen final.
+FROM python:3.12-slim AS builder
 WORKDIR /app
-
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-COPY app ./app
-COPY alembic.ini .
-COPY migrations ./migrations
+# Etapa final: solo el intérprete, las dependencias ya instaladas y el código de la aplicación.
+FROM python:3.12-slim
+# El proceso corre sin privilegios de administrador (RNF-02): un contenedor comprometido no debería
+# poder escribir fuera de lo que este usuario ya puede tocar.
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser
+WORKDIR /app
+COPY --from=builder /root/.local /home/appuser/.local
+COPY --chown=appuser:appuser app ./app
+COPY --chown=appuser:appuser alembic.ini .
+COPY --chown=appuser:appuser migrations ./migrations
+ENV PATH=/home/appuser/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+USER appuser
 
 EXPOSE 8000
 
-# Aplica migraciones y siembra roles/admin inicial antes de arrancar el servidor.
+# El orquestador (docker compose, Cloud Run) usa esto para saber si el contenedor sirve tráfico; no
+# depende de curl, que la imagen slim no trae.
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+
 # Procesos de uvicorn por contenedor; la prueba de carga (12_RESULTADOS_OBTENIDOS/prueba_de_carga_tablero.md)
 # mide 1, 2 y 4. Las migraciones y la siembra corren una sola vez, antes de arrancar los procesos.
 ENV UVICORN_WORKERS=2

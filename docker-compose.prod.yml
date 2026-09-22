@@ -1,0 +1,83 @@
+# Verificación local de un despliegue "de producción": las mismas imágenes de servicio que
+# docker-compose.yml (Dockerfiles ya multietapa, sin privilegios de administrador, con HEALTHCHECK),
+# más HTTPS, cabeceras de seguridad y el frontend compilado y servido por nginx en vez del servidor de
+# desarrollo de Vite. Es la base sobre la que se decidiría un despliegue real (Cloud Run u otro),
+# decisión que queda pendiente (ver Fase 5 del plan); mientras tanto, sirve para comprobar en este
+# mismo equipo que RNF-02 (HTTPS) y el resto de RNF de infraestructura funcionan de verdad, no solo
+# en el código.
+#
+# Uso (desde esta carpeta):
+#   python scripts/gen_dev_tls_cert.py                 # certificado TLS autofirmado (o use mkcert)
+#   cp .env.prod.example .env.prod                     # y complete secretos REALES (nunca los de .env.prod.example)
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#   # https://localhost  (certificado autofirmado -> el navegador pide confirmar la excepción)
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod down
+#
+# .env.prod NUNCA se versiona (está en .gitignore, igual que cualquier .env real). image: en frontend y
+# gateway usa un nombre PROPIO (distinto del de docker-compose.yml): si reutilizara el mismo nombre,
+# "docker compose build" en modo prod sobrescribiría en el caché local la imagen de desarrollo (Vite) con
+# esta de producción (nginx), y el siguiente "docker compose up" sin este archivo levantaría la imagen
+# equivocada.
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD en .env.prod (secreto real, no el de .env.example)}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Defina AUTH_DB_PASSWORD en .env.prod}
+      FLEET_DB_PASSWORD: ${FLEET_DB_PASSWORD:?Defina FLEET_DB_PASSWORD en .env.prod}
+
+  auth-service:
+    environment:
+      APP_ENV: production
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?Defina AUTH_DB_PASSWORD en .env.prod}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY en .env.prod (32+ caracteres, aleatorios)}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?Defina ADMIN_INITIAL_PASSWORD en .env.prod (el administrador deberá cambiarla al ingresar)}
+      CORS_ORIGINS: ${PUBLIC_ORIGIN:-https://localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  fleet-core-service:
+    environment:
+      APP_ENV: production
+      POSTGRES_PASSWORD: ${FLEET_DB_PASSWORD:?Defina FLEET_DB_PASSWORD en .env.prod}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY en .env.prod}
+      CORS_ORIGINS: ${PUBLIC_ORIGIN:-https://localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  reporting-service:
+    environment:
+      APP_ENV: production
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY en .env.prod}
+      CORS_ORIGINS: ${PUBLIC_ORIGIN:-https://localhost}
+
+  frontend:
+    image: sistema-control-flota-frontend-prod
+    build:
+      # Raíz del repositorio (no ./frontend): frontend/Dockerfile.prod también necesita
+      # infra/nginx/frontend.conf. Ver .dockerignore para qué queda fuera de ese contexto.
+      context: .
+      dockerfile: frontend/Dockerfile.prod
+    ports: !override []
+    # El frontend ya no depende del gateway para arrancar (al revés de docker-compose.yml, donde solo
+    # documentaba que el navegador necesita el gateway): aquí es el gateway el que espera a que el
+    # frontend esté sano antes de aceptar tráfico (más abajo), y esto evitaba un ciclo frontend<->gateway.
+    depends_on: !override []
+
+  gateway:
+    image: sistema-control-flota-gateway-prod
+    build:
+      context: ./infra/nginx
+      dockerfile: Dockerfile.prod
+    ports: !override ["80:8080", "443:8443"]
+    volumes: !override ["./infra/nginx/certs:/etc/nginx/certs:ro"]
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      fleet-core-service:
+        condition: service_healthy
+      reporting-service:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy

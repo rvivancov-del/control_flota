@@ -20,6 +20,7 @@ dist/
 
 # Env files (nunca versionar secretos reales)
 .env
+.env.prod
 services/**/.env
 frontend/.env
 
@@ -36,3 +37,4 @@ Thumbs.db
 
 # Artefactos de compilacion de TypeScript
 *.tsbuildinfo
+infra/nginx/certs/
