@@ -6,8 +6,8 @@ archivos `.env.example` de este repositorio la fijan en `development` para el us
 En producción, arrancar con la clave JWT o la contraseña de la base de datos por defecto
 (o con una clave JWT demasiado corta) es un error de configuración, no una advertencia.
 
-Este archivo es idéntico en auth-service, fleet-core-service y reporting-service; la Fase 5
-lo moverá a un paquete común.
+Este archivo es idéntico en auth-service, fleet-core-service y reporting-service (los servicios no
+comparten código en tiempo de ejecución); scripts/check_shared_code.py verifica que no se separen.
 """
 import os
 
