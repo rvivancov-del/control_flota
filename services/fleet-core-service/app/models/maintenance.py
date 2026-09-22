@@ -1,7 +1,7 @@
 """Modelo ORM de la tabla fleet.maintenance_records."""
 import uuid
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -12,6 +12,10 @@ class MaintenanceRecord(Base):
     """Registro de mantenimiento de un vehículo (Lámina D-01). RF-11, RF-12, RF-13."""
 
     __tablename__ = "maintenance_records"
+    __table_args__ = (
+        # Historial de un vehículo y sus pendientes (alertas, GET /maintenance y /vehicles/{id}/maintenance).
+        Index("ix_maintenance_records_vehicle_id_status", "vehicle_id", "status"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vehicle_id = Column(UUID(as_uuid=True), ForeignKey("vehicles.id"), nullable=False)

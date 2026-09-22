@@ -4,10 +4,10 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dates import filter_utc_days
 from app.core.deps import ROLES_OPERATIVOS, CurrentUser, get_current_user, require_role
 from app.maintenance import policy
 from app.models.driver import Driver
@@ -73,11 +73,7 @@ def list_trips(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="date_from no puede ser posterior a date_to.",
         )
-    query = db.query(Trip)
-    if date_from is not None:
-        query = query.filter(func.date(Trip.departure_at) >= date_from)
-    if date_to is not None:
-        query = query.filter(func.date(Trip.departure_at) <= date_to)
+    query = filter_utc_days(db.query(Trip), Trip.departure_at, date_from, date_to)
     if vehicle_id is not None:
         query = query.filter(Trip.vehicle_id == vehicle_id)
     if driver_id is not None:

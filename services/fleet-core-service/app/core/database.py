@@ -19,10 +19,10 @@ DATABASE_URL = (
 
 # search_path fija el esquema "fleet" como destino por defecto de las
 # consultas de este servicio, sin tocar los esquemas de los otros servicios.
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"options": f"-csearch_path={POSTGRES_SCHEMA}"},
-)
+# timezone=UTC hace determinista qué día es una fecha y hora (los filtros por rango de fechas cuentan
+# días UTC, ver app/core/dates.py) y no depende de cómo esté configurado el servidor.
+CONNECTION_OPTIONS = f"-csearch_path={POSTGRES_SCHEMA} -ctimezone=UTC"
+engine = create_engine(DATABASE_URL, connect_args={"options": CONNECTION_OPTIONS}, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Metadata SIN esquema explícito a propósito: junto con el search_path fijado
 # arriba y sin include_schemas=True en Alembic (ver migrations/env.py), esto
