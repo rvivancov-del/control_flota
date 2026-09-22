@@ -58,7 +58,9 @@ def main() -> None:
     psql("postgres", f"DROP DATABASE IF EXISTS {db} WITH (FORCE)")
     psql("postgres", f"CREATE DATABASE {db}")
     print("[2/5] Creando el esquema fleet…")
-    psql(db, "CREATE SCHEMA fleet")
+    # Dueño flota_fleet (infra/postgres/roles.sql), el rol con el que fleet-core-service se conecta:
+    # sin esto, sus migraciones (paso 3) no podrían crear tablas en un esquema que sería del superusuario.
+    psql(db, "CREATE SCHEMA fleet AUTHORIZATION flota_fleet")
     print("[3/5] Aplicando migraciones de Alembic (fleet-core-service)…")
     compose("exec", "-T", "-e", f"POSTGRES_DB={db}", "fleet-core-service", "alembic", "upgrade", "head")
     print("[4/5] Cargando la base piloto…")

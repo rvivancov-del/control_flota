@@ -5,6 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core import fleet_client
 from app.core.config_guard import assert_secure_configuration
 from app.dashboards.router import router as dashboards_router
 
@@ -22,6 +23,9 @@ app.add_middleware(
 )
 
 app.include_router(dashboards_router)
+
+# Cierra el pool de conexiones hacia fleet-core-service al apagar el servicio.
+app.add_event_handler("shutdown", fleet_client.close)
 
 
 @app.get("/health")

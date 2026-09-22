@@ -1,0 +1,15 @@
+[run]
+source = app
+branch = True
+# Las pruebas de integración (test_*_smoke.py) corren la app dentro de OTRO proceso (el contenedor del
+# stack, vía HTTP); medir cobertura solo tiene sentido para las unitarias (pytest -m "not smoke"), que
+# importan app.* directamente en este mismo proceso.
+omit =
+    app/__init__.py
+
+[report]
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:

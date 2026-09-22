@@ -58,3 +58,13 @@ def operator_headers(base_url: str, auth_headers: dict):
     login.raise_for_status()
     yield {"Authorization": f"Bearer {login.json()['access_token']}"}
     requests.patch(f"{base_url}/auth/users/{user_id}", headers=auth_headers, json={"is_active": False})
+
+
+def pytest_collection_modifyitems(config, items):
+    """Marca automáticamente como "smoke" toda prueba de un archivo test_*_smoke.py (la convención ya
+    usada en los tres servicios): así `pytest -m "not smoke"` corre solo las unitarias (sin el stack
+    levantado) sin tener que anotar cada prueba a mano, y `pytest -m smoke` corre solo las de
+    integración. Ver scripts/README.md."""
+    for item in items:
+        if item.fspath.basename.endswith("_smoke.py"):
+            item.add_marker(pytest.mark.smoke)

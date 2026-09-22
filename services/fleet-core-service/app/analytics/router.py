@@ -16,6 +16,7 @@ from app.analytics.schemas import (
     TripAggregateRow,
 )
 from app.core.database import get_db
+from app.core.dates import filter_utc_days
 from app.core.deps import ADMIN, ROLES_OPERATIVOS, require_role
 from app.costs import proration
 from app.costs.schemas import FixedCostAccrualRow, PersonnelCostAccrualRow
@@ -99,10 +100,7 @@ def trip_aggregate(
         revenue_trips,
         revenue_distance,
     ).filter(Trip.status == "completado")
-    if date_from is not None:
-        query = query.filter(func.date(Trip.departure_at) >= date_from)
-    if date_to is not None:
-        query = query.filter(func.date(Trip.departure_at) <= date_to)
+    query = filter_utc_days(query, Trip.departure_at, date_from, date_to)
     rows = query.group_by(Trip.vehicle_id, Trip.driver_id, trip_date).all()
     return [
         TripAggregateRow(
@@ -153,12 +151,8 @@ def route_aggregate(
         .join(Expense, Expense.trip_id == Trip.id)
         .filter(Trip.status == "completado")
     )
-    if date_from is not None:
-        trip_query = trip_query.filter(func.date(Trip.departure_at) >= date_from)
-        cost_query = cost_query.filter(func.date(Trip.departure_at) >= date_from)
-    if date_to is not None:
-        trip_query = trip_query.filter(func.date(Trip.departure_at) <= date_to)
-        cost_query = cost_query.filter(func.date(Trip.departure_at) <= date_to)
+    trip_query = filter_utc_days(trip_query, Trip.departure_at, date_from, date_to)
+    cost_query = filter_utc_days(cost_query, Trip.departure_at, date_from, date_to)
 
     trip_rows = trip_query.group_by(Trip.origin, Trip.destination).all()
     cost_by_route = {(r.origin, r.destination): r for r in cost_query.group_by(Trip.origin, Trip.destination).all()}

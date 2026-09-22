@@ -1,0 +1,121 @@
+# Integración continua (RNF-08). Corre en cada push y pull request contra develop y main: lint,
+# pruebas unitarias con cobertura (falla por debajo del umbral de RNF-07), compilación del frontend,
+# construcción de las imágenes de producción, y una comprobación de humo del stack completo con
+# docker compose. No hay despliegue: eso queda pendiente de la decisión sobre Cloud Run (ver el
+# README de la raíz del proyecto).
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+defaults:
+  run:
+    working-directory: sistema-control-flota
+
+env:
+  COVERAGE_THRESHOLD: 60  # RNF-07
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.6.9
+      # E9/F: errores de sintaxis e importaciones/nombres sin usar o sin definir — un lint mínimo y
+      # rápido, no un estilo de formato; ver services/*/requirements-test.txt si se quiere ampliar.
+      - run: ruff check services --select E9,F --line-length 130
+      - run: python scripts/check_shared_code.py
+
+  backend-unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth-service, fleet-core-service, reporting-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: sistema-control-flota/services/${{ matrix.service }}/requirements*.txt
+      - name: Instalar dependencias
+        working-directory: sistema-control-flota/services/${{ matrix.service }}
+        run: pip install -r requirements.txt -r requirements-test.txt httpx==0.27.2
+      - name: 'Pruebas unitarias con cobertura (sin el stack: -m "not smoke")'
+        working-directory: sistema-control-flota/services/${{ matrix.service }}
+        run: >
+          python -m pytest tests -m "not smoke" -q
+          --cov=app --cov-report=term-missing --cov-report=xml
+          --cov-fail-under=${{ env.COVERAGE_THRESHOLD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: sistema-control-flota/services/${{ matrix.service }}/coverage.xml
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: sistema-control-flota/frontend/package-lock.json
+      - working-directory: sistema-control-flota/frontend
+        run: npm ci
+      # tsc -b + vite build (frontend/package.json): el mismo comando que usa frontend/Dockerfile.prod.
+      - working-directory: sistema-control-flota/frontend
+        run: npm run build
+
+  build-images:
+    needs: [lint, backend-unit-tests, frontend-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+
+  # Levanta la pila completa con docker compose (las mismas imágenes ya construidas), espera a que el
+  # login responda y hace una comprobación mínima de extremo a extremo por el gateway: login,
+  # dashboard con IVA, y que el operador no reciba los costos fijos. Con datos reales (la base piloto),
+  # no sintéticos — la profundidad de las pruebas está en backend-unit-tests y en las de integración
+  # (test_*_smoke.py), que necesitan más tiempo y corren aparte, contra la pila de verificación (ver
+  # scripts/README.md); no en cada push por costo de tiempo, sino cuando se decide fusionar.
+  smoke-compose:
+    needs: build-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build
+      - name: Esperar a que el login responda
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/auth/login \
+              -H 'Content-Type: application/json' -d '{"username":"admin","password":"Admin1234"}')
+            [ "$code" = "200" ] && exit 0
+            sleep 2
+          done
+          echo "El login no respondió 200 a tiempo" >&2
+          docker compose logs
+          exit 1
+      - run: docker compose exec -T postgres psql -U flota -d flota_db -v ON_ERROR_STOP=1 -q < scripts/seed/pilot_dataset.sql
+      - run: docker compose restart gateway && sleep 3
+      - name: Recorrido de humo por el gateway
+        run: |
+          set -e
+          TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"Admin1234"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+          test -n "$TOKEN"
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/reports/dashboard/summary \
+            -H "Authorization: Bearer $TOKEN")
+          [ "$code" = "200" ] || { echo "dashboard summary -> $code" >&2; exit 1; }
+      - if: always()
+        run: docker compose logs --since 10m
+      - if: always()
+        run: docker compose down -v

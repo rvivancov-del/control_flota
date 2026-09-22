@@ -59,6 +59,7 @@ MATRIZ = {
     ("PATCH", "/maintenance/{maintenance_id}/complete"): AMBOS,
     ("PATCH", "/maintenance/{maintenance_id}/cost"): AMBOS,
     ("GET", "/expenses"): AMBOS,
+    ("GET", "/maintenance"): AMBOS,
     ("GET", "/maintenance/alerts"): AMBOS,
     ("GET", "/maintenance/policy"): AMBOS,
     ("GET", "/analytics/expenses"): AMBOS,

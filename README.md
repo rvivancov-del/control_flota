@@ -7,9 +7,11 @@ en Sistemas — certificación EUR-ACE).
 **Estado real, verificado (no aspiracional):** los 20 requerimientos
 funcionales declarados (RF-01 a RF-20) están implementados, probados y
 funcionando de punta a punta — backend, frontend y base de datos — sobre los
-tres microservicios descritos abajo. Cobertura de pruebas medida con
-`coverage.py` sobre los tres servicios: 71–82% por servicio, 78% combinado
-(suite de 28 pruebas), por encima de la meta declarada en RNF-07 (≥60%).
+tres microservicios descritos abajo. 907 pruebas automatizadas (unitarias +
+integración contra la pila de verificación); cobertura de las pruebas
+unitarias medida con `pytest-cov`: 80% combinado (69–94% por servicio), por
+encima de la meta declarada en RNF-07 (≥60%) — detalle y cómo reproducirla en
+`12_RESULTADOS_OBTENIDOS/cobertura_pruebas.md`.
 
 ## Qué hace
 
@@ -75,7 +77,7 @@ sistema-control-flota/
 ├── docker-compose.yml       # orquesta todo el entorno de desarrollo local
 ├── infra/
 │   ├── nginx/                # gateway / reverse proxy
-│   └── postgres/init.sql     # crea los esquemas auth / fleet / reporting
+│   └── postgres/              # roles.sql + init.sh: un rol por servicio, dueño de su esquema (auth / fleet)
 ├── services/
 │   ├── auth-service/          # autenticación, usuarios y roles — ver su README
 │   ├── fleet-core-service/     # vehículos, viajes, gastos, mantenimiento, despacho QR — ver su README
@@ -103,7 +105,7 @@ carpeta — este documento cubre solo la vista de conjunto.
 3. Servicios disponibles:
    - Frontend: http://localhost:5173
    - API (gateway): http://localhost:8080/api/auth/... · /api/fleet/... · /api/reports/...
-   - PostgreSQL: localhost:5432
+   - PostgreSQL: no se publica en el equipo (solo lo ven los servicios). Consola: `docker compose exec postgres psql -U flota -d flota_db`
    - Usuario inicial: `admin` / `Admin1234` (creado por `auth-service/app/seed.py`
      en el primer arranque — cámbialo antes de cualquier despliegue real).
    - Los `.env.example` traen `APP_ENV=development`. Sin esa variable (o con otro valor) los servicios

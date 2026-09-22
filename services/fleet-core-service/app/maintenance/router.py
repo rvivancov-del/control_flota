@@ -2,8 +2,9 @@
 kilometraje (RF-11, RF-12, RF-13). La clasificación vencido/próximo/normal
 la decide app/maintenance/policy.py."""
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -64,6 +65,32 @@ def list_vehicle_maintenance(
         .all()
     )
     return [_read_with_urgency(r, vehicle.current_mileage_km) for r in records]
+
+
+MAINTENANCE_STATUSES = ("pendiente", "en_proceso", "completado")
+
+
+@router.get("/maintenance", response_model=list[MaintenanceRead])
+def list_maintenance(
+    vehicle_id: Optional[uuid.UUID] = Query(None, description="Solo los mantenimientos de este vehículo"),
+    status_filter: Optional[str] = Query(None, description=f"Solo los de este estado: {', '.join(MAINTENANCE_STATUSES)}"),
+    db: Session = Depends(get_db),
+) -> list[MaintenanceRead]:
+    """Historial de mantenimientos de toda la flota en una sola consulta, del más reciente al más
+    antiguo. Es lo que necesita reporting-service para armar el tablero sin pedir el historial de
+    cada vehículo por separado (una llamada por vehículo, que crecía con la flota)."""
+    if status_filter is not None and status_filter not in MAINTENANCE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"status_filter debe ser uno de: {', '.join(MAINTENANCE_STATUSES)}",
+        )
+    query = db.query(MaintenanceRecord, Vehicle.current_mileage_km).join(Vehicle, Vehicle.id == MaintenanceRecord.vehicle_id)
+    if vehicle_id is not None:
+        query = query.filter(MaintenanceRecord.vehicle_id == vehicle_id)
+    if status_filter is not None:
+        query = query.filter(MaintenanceRecord.status == status_filter)
+    rows = query.order_by(MaintenanceRecord.created_at.desc()).all()
+    return [_read_with_urgency(record, current_km) for record, current_km in rows]
 
 
 @router.patch("/maintenance/{maintenance_id}/complete", response_model=MaintenanceRead)

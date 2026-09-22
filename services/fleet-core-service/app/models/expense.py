@@ -1,7 +1,7 @@
 """Modelo ORM de la tabla fleet.expenses."""
 import uuid
 
-from sqlalchemy import CheckConstraint, Column, Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import CheckConstraint, Column, Date, DateTime, ForeignKey, Index, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -14,6 +14,10 @@ class Expense(Base):
     __tablename__ = "expenses"
     __table_args__ = (
         CheckConstraint("location IS NULL OR type = 'peaje'", name="ck_expenses_location_only_toll"),
+        # Gastos de un viaje (unión con trips en analytics y GET /trips/{id}/expenses), por fecha.
+        Index("ix_expenses_trip_id_expense_date", "trip_id", "expense_date"),
+        # Filtros por rango de fechas (analytics y RF-14).
+        Index("ix_expenses_expense_date", "expense_date"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
