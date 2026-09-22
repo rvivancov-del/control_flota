@@ -491,6 +491,19 @@ def build_cost_trend(
     return TrendResponse(points=points, iva_mode=mode)
 
 
+def _maintenance_by_vehicle(
+    client: FleetClient, vehicle_id: Optional[str] = None, status_filter: Optional[str] = None
+) -> dict[str, list[dict]]:
+    """Mantenimientos de la flota agrupados por vehículo, con UNA llamada a fleet-core (antes, una por
+    vehículo: cuatro consultas del tablero pedían 12 historiales cada una con la flota piloto, y la
+    cantidad crecía con la flota). Dentro de cada vehículo se conserva el orden del más reciente al más
+    antiguo."""
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for record in client.list_maintenance_records(vehicle_id, status_filter):
+        grouped[record["vehicle_id"]].append(record)
+    return grouped
+
+
 def build_expense_records(
     client: FleetClient,
     vehicle_id: Optional[str] = None,
@@ -504,8 +517,8 @@ def build_expense_records(
     agregados por día desde SQL — a la escala de una flota real, "un punto
     por día" sigue mostrando la forma real de la distribución y los valores
     atípicos, sin repetir el problema de una llamada HTTP por recibo. El
-    mantenimiento sigue viniendo registro por registro (ya es barato: una
-    llamada por vehículo, no por evento)."""
+    mantenimiento sigue viniendo registro por registro, pero de toda la
+    flota en una sola llamada."""
     mode = _iva_mode(iva_mode)
     category = category if category in VALID_CATEGORIES else None
     vehicles = client.list_vehicles()
@@ -542,8 +555,9 @@ def build_expense_records(
             )
 
     if category is None or category == "mantenimiento":
+        maintenance = _maintenance_by_vehicle(client, vehicle_id, "completado")
         for vehicle in vehicles:
-            for record in client.list_maintenance(vehicle["id"]):
+            for record in maintenance.get(vehicle["id"], []):
                 if record["status"] != "completado" or not record.get("cost"):
                     continue
                 ref_date = _maintenance_reference_date(record)
@@ -579,8 +593,9 @@ def build_maintenance_report(
         vehicles = [v for v in vehicles if v["id"] == vehicle_id]
 
     items: list[MaintenanceReportItem] = []
+    maintenance = _maintenance_by_vehicle(client, vehicle_id)
     for vehicle in vehicles:
-        for record in client.list_maintenance(vehicle["id"]):
+        for record in maintenance.get(vehicle["id"], []):
             ref_date = _maintenance_reference_date(record)
             if ref_date is not None and not _date_in_range(ref_date, date_from, date_to):
                 continue
@@ -615,9 +630,10 @@ def build_maintenance_status(
     alerts: list[MaintenanceAlertDetail] = []
     mix_by_category: dict[str, dict] = defaultdict(lambda: {"count": 0, "total_cost": Decimal("0")})
 
+    maintenance = _maintenance_by_vehicle(client, vehicle_id)
     for vehicle in vehicles:
         current_km = vehicle["current_mileage_km"]
-        for record in client.list_maintenance(vehicle["id"]):
+        for record in maintenance.get(vehicle["id"], []):
             if record["status"] == "completado":
                 if record.get("cost"):
                     entry = mix_by_category[record["category"]]
@@ -689,9 +705,10 @@ def build_maintenance_priority(
     }
 
     items: list[MaintenancePriorityItem] = []
+    pending = _maintenance_by_vehicle(client, vehicle_id, "pendiente")
     for vehicle in vehicles:
         vid = vehicle["id"]
-        for record in client.list_maintenance(vid):
+        for record in pending.get(vid, []):
             if record["status"] != "pendiente":
                 continue
             km_remaining = record.get("km_remaining")  # lo calcula fleet-core (RF-13)

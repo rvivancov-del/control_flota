@@ -1,6 +1,14 @@
 """Cliente HTTP hacia fleet-core-service -- la única forma en que
-reporting-service obtiene datos, al no tener base de datos propia."""
+reporting-service obtiene datos, al no tener base de datos propia.
+
+Todas las llamadas de un proceso comparten un pool de conexiones (keep-alive): abrir una conexión nueva
+por llamada, como se hacía antes, multiplicaba el costo de cada consulta del tablero. Como toda consulta
+es un GET (idempotente), se reintenta con espera creciente cuando fleet-core no contesta a tiempo o
+responde 502/503/504; un error del cliente (401, 403, 404, 422) nunca se reintenta.
+"""
 import os
+import threading
+import time
 from datetime import date
 from typing import Optional
 
@@ -8,21 +16,67 @@ import httpx
 
 FLEET_SERVICE_BASE_URL = os.getenv("FLEET_SERVICE_BASE_URL", "http://fleet-core-service:8000")
 
+CONNECT_TIMEOUT_S = float(os.getenv("FLEET_CONNECT_TIMEOUT_S", "3"))
+READ_TIMEOUT_S = float(os.getenv("FLEET_READ_TIMEOUT_S", "10"))
+MAX_RETRIES = int(os.getenv("FLEET_MAX_RETRIES", "2"))  # reintentos, además del primer intento
+BACKOFF_BASE_S = float(os.getenv("FLEET_BACKOFF_BASE_S", "0.2"))  # espera: 0,2 s, 0,4 s, ...
+RETRY_STATUS = (502, 503, 504)
+# Fallos de red de una conexión que no llegó a procesar la petición (o que el servidor ya había cerrado).
+# No se reintentan los tiempos de espera de lectura: duplicarían la espera del usuario y la carga.
+RETRY_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout, httpx.RemoteProtocolError, httpx.ReadError)
+
+_sleep = time.sleep  # sustituible en las pruebas para no esperar de verdad
+_client: Optional[httpx.Client] = None
+_client_lock = threading.Lock()
+
+
+def _http() -> httpx.Client:
+    """Cliente compartido del proceso (httpx.Client es seguro entre hilos); se crea al primer uso."""
+    global _client
+    if _client is None:
+        with _client_lock:
+            if _client is None:
+                _client = httpx.Client(
+                    base_url=FLEET_SERVICE_BASE_URL,
+                    timeout=httpx.Timeout(READ_TIMEOUT_S, connect=CONNECT_TIMEOUT_S),
+                    limits=httpx.Limits(max_connections=32, max_keepalive_connections=16),
+                )
+    return _client
+
+
+def close() -> None:
+    """Cierra el pool al apagar el servicio."""
+    global _client
+    with _client_lock:
+        if _client is not None:
+            _client.close()
+            _client = None
+
 
 class FleetClient:
     """Cliente HTTP hacia fleet-core-service. reporting-service no tiene
     acceso directo al esquema "fleet" — respeta el límite entre servicios
     consultando su API, con el mismo token del usuario que hizo la petición
-    original a este servicio."""
+    original a este servicio. El token va en cada llamada, no en el pool:
+    ninguna conexión queda asociada a un usuario."""
 
     def __init__(self, token: str) -> None:
         self._headers = {"Authorization": f"Bearer {token}"}
 
     def _get(self, path: str, params: Optional[dict] = None):
-        with httpx.Client(base_url=FLEET_SERVICE_BASE_URL, timeout=10.0) as client:
-            response = client.get(path, headers=self._headers, params=params)
-            response.raise_for_status()
-            return response.json()
+        attempt = 0
+        while True:
+            try:
+                response = _http().get(path, headers=self._headers, params=params)
+            except RETRY_ERRORS:
+                if attempt >= MAX_RETRIES:
+                    raise
+            else:
+                if response.status_code not in RETRY_STATUS or attempt >= MAX_RETRIES:
+                    response.raise_for_status()
+                    return response.json()
+            attempt += 1
+            _sleep(BACKOFF_BASE_S * 2 ** (attempt - 1))
 
     def list_vehicles(self) -> list[dict]:
         return self._get("/vehicles")
@@ -30,21 +84,18 @@ class FleetClient:
     def list_drivers(self) -> list[dict]:
         return self._get("/drivers")
 
-    def list_trips(
+    def list_maintenance_records(
         self, vehicle_id: Optional[str] = None, status_filter: Optional[str] = None
     ) -> list[dict]:
+        """Mantenimientos de toda la flota (o de un vehículo, o de un estado) en UNA sola llamada, con
+        km restantes y urgencia ya calculados por fleet-core. Reemplaza al historial pedido vehículo por
+        vehículo, cuya cantidad de llamadas crecía con el tamaño de la flota."""
         params: dict = {}
         if vehicle_id:
             params["vehicle_id"] = vehicle_id
         if status_filter:
             params["status_filter"] = status_filter
-        return self._get("/trips", params=params)
-
-    def list_expenses(self, trip_id: str) -> list[dict]:
-        return self._get(f"/trips/{trip_id}/expenses")
-
-    def list_maintenance(self, vehicle_id: str) -> list[dict]:
-        return self._get(f"/vehicles/{vehicle_id}/maintenance")
+        return self._get("/maintenance", params=params or None)
 
     def list_maintenance_alerts(self) -> list[dict]:
         return self._get("/maintenance/alerts")

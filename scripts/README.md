@@ -40,6 +40,12 @@ python scripts/check_iva_rates.py
 python scripts/gen_doc_modelo_costos.py --check
 ```
 
+## Prueba de carga
+
+`scripts/loadtest/` tiene la prueba de carga del tablero con k6 (RNF-01: consultas en menos de 2 s con
+10 usuarios concurrentes) y el generador de su informe. Se corre contra la pila de verificación; ver
+`scripts/loadtest/README.md`. Resultados: `12_RESULTADOS_OBTENIDOS/prueba_de_carga_tablero.md`.
+
 ## Cuándo reexportar
 
 Solo si cambia a propósito la base piloto (y por tanto las cifras del documento). Después
