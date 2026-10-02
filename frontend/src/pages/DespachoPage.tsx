@@ -62,7 +62,7 @@ function DespachoPage() {
 
   useEffect(() => {
     if (!driverId || !qrToken) {
-      setLoadError("Este enlace no es válido — escaneá de nuevo el código QR de tu cabina.");
+      setLoadError("Este enlace no es válido — escanea de nuevo el código QR de tu cabina.");
       setIsLoading(false);
       return;
     }
@@ -79,7 +79,7 @@ function DespachoPage() {
         if (err instanceof ApiError && err.status === 401) {
           forgetCredential(driverId);
           setLoadError(
-            "Este código QR ya no es válido: venció o fue reemplazado. Pedile a tu administrador que genere uno nuevo.",
+            "Este código QR ya no es válido: venció o fue reemplazado. Pide a tu administrador que genere uno nuevo.",
           );
         } else {
           setLoadError(err instanceof ApiError ? err.message : "No se pudo cargar la información del vehículo.");
@@ -106,7 +106,7 @@ function DespachoPage() {
         // para reintentar, en vez de perder lo que el conductor ya escribió.
         localStorage.setItem(pendingKey(driverId), JSON.stringify(payload));
         setHasOfflineDraft(true);
-        setSubmitError("Sin conexión a internet. El viaje quedó guardado en este teléfono — presioná \"Reintentar envío\" cuando vuelva la señal.");
+        setSubmitError("Sin conexión a internet. El viaje quedó guardado en este teléfono — presiona \"Reintentar envío\" cuando vuelva la señal.");
       }
     } finally {
       setIsSubmitting(false);
@@ -159,7 +159,7 @@ function DespachoPage() {
         <div className={styles.successCard}>
           <div className={styles.successIcon}>✓</div>
           <p className={styles.successTitle}>{successMessage}</p>
-          <p className={styles.successHint}>Ya podés cerrar esta pantalla.</p>
+          <p className={styles.successHint}>Ya puedes cerrar esta pantalla.</p>
         </div>
       </div>
     );
