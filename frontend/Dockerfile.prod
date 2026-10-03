@@ -2,7 +2,7 @@
 # del servidor de desarrollo de Vite (frontend/Dockerfile, para docker-compose.yml). La usa
 # docker-compose.prod.yml, con la RAÍZ del repositorio como contexto de compilación (no solo
 # frontend/): esta etapa final necesita infra/nginx/frontend.conf, fuera de la carpeta frontend/.
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
