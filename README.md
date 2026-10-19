@@ -1,310 +1,383 @@
-# FlotaControl — control de costos y mantenimiento de una flota de carga pesada
+<div align="center">
 
-**Sistema web con arquitectura de microservicios para el control de costos operativos y mantenimiento de una flota de
-transporte de carga pesada, con priorización de mantenimiento mediante AHP.**
+<img src="docs/banner.svg" alt="FlotaControl — Cada kilómetro, bajo control" width="100%">
 
-Trabajo de titulación de **Rosa Margarita Vivanco Vélez**, Ingeniería en Tecnologías de la Información, Universidad
-Estatal de Milagro (UNEMI). Docentes: M.Sc. Mirella Azucena Peralta Correa y M.Sc. María Gabriela Espinoza Bravo.
+### Sistema web con arquitectura de microservicios para el control de costos operativos y mantenimiento de una flota de transporte de carga pesada, con priorización de mantenimiento mediante AHP
 
-![Recorrido por el sistema](docs/recorrido.gif)
+<p>
+<img alt="Versión" src="https://img.shields.io/badge/versión-v1.1--avance2-1B3A5C?style=for-the-badge">
+<img alt="Pruebas" src="https://img.shields.io/badge/pruebas-907%2F908%20aprobadas-2E8B57?style=for-the-badge">
+<img alt="Cobertura" src="https://img.shields.io/badge/cobertura-80%25-2E8B57?style=for-the-badge">
+<img alt="p95" src="https://img.shields.io/badge/tablero%20p95-1%2C19%20s-E87D1E?style=for-the-badge">
+</p>
+<p>
+<img alt="Python" src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white">
+<img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
+<img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white">
+<img alt="React" src="https://img.shields.io/badge/React-TypeScript-61DAFB?logo=react&logoColor=black">
+<img alt="Nginx" src="https://img.shields.io/badge/Nginx-gateway-009639?logo=nginx&logoColor=white">
+<img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
+</p>
 
-| | |
-|---|---|
-| **Versión** | `v1.1-avance2` (Avance 2 del trabajo de titulación) |
-| **Pruebas** | 908 automatizadas (907 aprobadas, 1 omitida por diseño); cobertura 80 % |
-| **Rendimiento** | Tablero con p95 de 1,19 s con 10 usuarios a la vez (meta: 2 s) |
-| **Tecnologías** | Python 3.12 · FastAPI · SQLAlchemy · PostgreSQL 16 · React + TypeScript · Nginx · Docker |
-| **Datos** | Todas las capturas y la base de prueba usan **datos ficticios** |
+**[Video](#-video-de-demostración)** · **[Capturas](#-capturas)** · **[Guía de uso](#-guía-de-uso)** · **[Instalación](#-instalación-y-guía-técnica)** · **[Arquitectura](#-arquitectura)** · **[Diseño UML](#-diseño-uml-y-modelo-de-datos)** · **[Pruebas](#-pruebas-y-calidad)**
 
-## Video de demostración
-
-El recorrido animado de arriba muestra las pantallas principales. El video con la demostración completa (inicio de sesión, tablero de costos, registro de un viaje, despacho por QR desde el celular y ranking de mantenimientos) se publica con el Avance 3.
-
----
-
-## Contenido
-1. [El problema](#1-el-problema)
-2. [Qué hace el sistema](#2-qué-hace-el-sistema)
-3. [Capturas](#3-capturas)
-4. [Arquitectura](#4-arquitectura)
-5. [Diseño: UML y modelo de datos](#5-diseño-uml-y-modelo-de-datos)
-6. [Priorización del mantenimiento con AHP](#6-priorización-del-mantenimiento-con-ahp)
-7. [Pruebas y calidad](#7-pruebas-y-calidad)
-8. [Cómo ejecutarlo](#8-cómo-ejecutarlo)
-9. [Estructura del repositorio](#9-estructura-del-repositorio)
-10. [Alcance y trabajo futuro](#10-alcance-y-trabajo-futuro)
+</div>
 
 ---
 
-## 1. El problema
+<table>
+<tr>
+<td width="62%">
 
-En una pequeña empresa de transporte de carga pesada, los gastos de cada viaje (combustible, peajes, alimentación) y el
-mantenimiento de los camiones se registran a mano, en comprobantes dispersos y a cargo de una sola persona. Por eso:
+**FlotaControl** ayuda a una pequeña empresa de transporte de carga pesada a saber **cuánto le cuesta realmente cada camión y cada kilómetro**, a **decidir qué mantenimiento atender primero** y a que **el conductor registre su viaje desde el celular**, sin papeles dispersos ni una sola persona que lo sepa todo.
 
-- no se conoce el **costo real** de cada camión ni por kilómetro;
-- el mantenimiento es **reactivo**: se repara cuando el camión ya falló;
-- los registros se duplican o no cuadran;
-- no hay indicadores para decidir;
-- la información depende de una sola persona.
+Trabajo de titulación de **Rosa Margarita Vivanco Vélez**, Ingeniería en Tecnologías de la Información, Universidad Estatal de Milagro (UNEMI).
+Docentes: **M.Sc. Mirella Azucena Peralta Correa** y **M.Sc. María Gabriela Espinoza Bravo**.
 
-## 2. Qué hace el sistema
+> Todas las capturas, videos y datos de prueba son **ficticios**: no contienen datos personales reales.
 
-| Módulo | Qué resuelve | Requisitos |
-|---|---|---|
-| Usuarios y roles | Inicio de sesión con token (JWT), roles Administrador y Operador, bloqueo tras intentos fallidos | RF-01 a RF-03 |
-| Flota | Vehículos y conductores, con licencia y vehículo asignado | RF-04, RF-05 |
-| Viajes y gastos | Viajes con kilometraje; gastos de combustible, peajes y alimentación por viaje | RF-06 a RF-10, RF-14 |
-| Despacho por QR | El conductor registra su viaje **desde su celular** escaneando una credencial QR personal, revocable y con vigencia de 180 días, sin usuario ni contraseña | RF-18 |
-| Costos | Costo variable y total **Ct = Cv + Cf** (costos fijos del vehículo y de personal), costo por kilómetro en ocho categorías, consumo, utilización, con y sin IVA | RF-15, RF-16, RF-21 |
-| Mantenimiento | Registro por tipo; **alertas** por kilometraje (vencido, próximo) | RF-11 a RF-13 |
-| Priorización | **Ranking AHP** de los mantenimientos pendientes según seguridad, urgencia y costo | RF-19, RF-20 |
-| Reportes | Exportación a Excel y PDF | RF-17 |
+</td>
+<td width="38%" align="center">
+<img src="docs/capturas/10_despacho_movil.png" alt="Portal del conductor en el celular" width="230">
+<br><sub>Portal del conductor: despacho por QR</sub>
+</td>
+</tr>
+</table>
 
-Son 21 requisitos funcionales, cada uno con su criterio de aceptación y las pruebas que lo verifican, y 11 no
-funcionales según ISO/IEC 25010:2023.
+## 🎬 Video de demostración
 
-## 3. Capturas
+<div align="center">
 
-| Inicio de sesión | Tablero de costos (Ct = Cv + Cf) |
+<img src="docs/demo.gif" alt="Recorrido por el panel de FlotaControl" width="90%">
+
+**▶️ [Ver el video completo del panel (MP4)](docs/video/demo_panel.mp4)** · **📱 [Ver el despacho desde el celular (MP4)](docs/video/demo_despacho_movil.mp4)**
+
+</div>
+
+## ✨ Qué hace
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 💰 Costo real
+Convierte cada gasto del viaje en **costo por vehículo y por kilómetro**. Suma los costos fijos y de personal: **Ct = Cv + Cf**, en las ocho categorías del costo de un vehículo-km. Muestra los montos con y sin IVA.
+
+</td>
+<td width="33%" valign="top">
+
+### 🔧 Mantenimiento priorizado
+Envía **alertas por kilometraje** (vencido o próximo) y ordena los mantenimientos pendientes con el **método AHP**, que combina seguridad, urgencia y costo con pesos configurables.
+
+</td>
+<td width="33%" valign="top">
+
+### 📱 Despacho por QR
+El conductor escanea **su credencial QR personal**, que es revocable y vale 180 días, y registra la salida desde su celular, **sin usuario ni contraseña**. Si no hay señal, el registro se guarda y se reenvía después.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 📊 Tablero
+Muestra el gasto operativo, la proyección de cierre, el consumo en L/100 km, la utilización de la flota, la utilidad, la tendencia, la composición del gasto y los gastos atípicos.
+
+</td>
+<td valign="top">
+
+### 🔐 Seguridad
+Usa roles (Administrador y Operador), contraseñas con hash, JWT con vigencia, bloqueo tras intentos fallidos, límite de solicitudes y HTTPS en producción. Los datos se tratan según la LOPDP.
+
+</td>
+<td valign="top">
+
+### 📤 Reportes
+Exporta los costos y los mantenimientos por vehículo y período a **Excel y PDF**, listos para el área contable.
+
+</td>
+</tr>
+</table>
+
+## 📸 Capturas
+
+| Inicio de sesión | Tablero de indicadores |
+|:---:|:---:|
+| <img src="docs/capturas/01_inicio_sesion.png" alt="Inicio de sesión"> | <img src="docs/capturas/02_tablero.png" alt="Tablero"> |
+| **Estructura del costo: Ct = Cv + Cf en ocho categorías** | **Alertas y prioridad de atención** |
+| <img src="docs/capturas/03_estructura_costos.png" alt="Estructura de costos"> | <img src="docs/capturas/04_alertas_y_prioridad.png" alt="Alertas y prioridad"> |
+| **Ranking AHP de mantenimientos** | **Viajes** |
+| <img src="docs/capturas/05_ranking_ahp.png" alt="Ranking AHP"> | <img src="docs/capturas/06_viajes.png" alt="Viajes"> |
+| **Flota de vehículos** | **Costos fijos y de personal** |
+| <img src="docs/capturas/07_vehiculos.png" alt="Vehículos"> | <img src="docs/capturas/08_costos_fijos.png" alt="Costos fijos"> |
+| **Reportes (Excel y PDF)** | |
+| <img src="docs/capturas/09_reportes.png" alt="Reportes"> | |
+
+---
+
+## 📘 Guía de uso
+
+<details open>
+<summary><b>1. Ingresar al sistema</b></summary>
+
+1. Abre el navegador en `http://localhost:5173`, o en la dirección que indique quien administra el sistema.
+2. Escribe tu usuario y contraseña, y pulsa **Ingresar**.
+3. La sesión dura 60 minutos. Si se cierra sola, vuelve a ingresar.
+
+| Rol | Qué puede hacer |
 |---|---|
-| ![Inicio de sesión](docs/capturas/01_inicio_sesion.png) | ![Tablero](docs/capturas/02_tablero.png) |
-| **Alertas y ranking AHP de mantenimientos** | **Conductores con credencial QR vigente** |
-| ![Ranking AHP](docs/capturas/03_ranking_ahp.png) | ![Credenciales QR](docs/capturas/04_credenciales_qr.png) |
+| **Administrador** | Todo, además de **Usuarios** (crear cuentas y asignar roles) y **Costos** (costos fijos y de personal) |
+| **Operador** | Registrar viajes, gastos y mantenimientos, y consultar el tablero y los reportes |
+| **Conductor** | No tiene cuenta: despacha su viaje con su **credencial QR** desde el celular |
 
-## 4. Arquitectura
+No hay registro desde la pantalla de inicio: solo un administrador crea cuentas.
+</details>
 
-Son tres microservicios de grano grueso detrás de un gateway. Cada servicio es dueño de su propio esquema de base de datos.
+<details>
+<summary><b>2. Leer el tablero</b></summary>
 
-![Arquitectura](docs/diagramas/arquitectura_contenedores.png)
+Es la primera pantalla. Elige **Semana, Mes o Año**, avanza o retrocede de período con las flechas y alterna **Con IVA / Sin IVA**.
+
+| Indicador | Qué significa |
+|---|---|
+| Gasto operativo de la flota | Combustible, peajes, alimentación y mantenimiento del período, comparados con el período anterior |
+| Proyección de cierre | En cuánto cerrará el período al ritmo actual (con un rango probable) |
+| Costo total por kilómetro | Ct / km recorridos: el indicador clave del sector |
+| Mantenimientos urgentes | Vehículos con mantenimiento vencido o próximo por kilometraje |
+| Utilidad del período | Ingreso (fletes cobrados) menos el costo total |
+| Consumo de combustible | Litros por cada 100 km, distinto del costo porque el precio del diésel cambia |
+| Utilización de la flota | Porcentaje de días con al menos un viaje |
+
+Más abajo están:
+- la **estructura del costo** en ocho categorías;
+- la **acción requerida**: mantenimientos por atender y prioridad de atención;
+- la comparación entre mantenimiento preventivo y correctivo, y las gráficas de tendencia, composición y distribución.
+</details>
+
+<details>
+<summary><b>3. Registrar la flota: vehículos y conductores</b></summary>
+
+- **Vehículos → Nuevo vehículo:** placa, marca, modelo, año, matrícula y kilometraje actual. Con **Editar** se modifica un vehículo o se marca como inactivo.
+- **Conductores → Nuevo conductor:** nombre, número y tipo de licencia (ANT), teléfono y vehículo asignado.
+</details>
+
+<details>
+<summary><b>4. Viajes y gastos</b></summary>
+
+1. **Viajes → Nuevo viaje:** vehículo, conductor, origen, destino, fecha de salida y kilometraje inicial.
+2. El viaje pasa por los estados **planificado → en curso → completado**; también puede quedar **anulado**.
+3. **Para cerrar el viaje**, indica:
+   - el kilometraje final (los km recorridos se calculan solos);
+   - la fecha de llegada;
+   - opcionalmente, el **ingreso del flete**, que permite calcular la utilidad.
+4. En el detalle del viaje, **Agregar gasto**:
+   - **combustible**, con los litros;
+   - **peaje**, con la ubicación;
+   - **alimentación**.
+
+   Cada gasto muestra su base imponible y su IVA.
+</details>
+
+<details>
+<summary><b>5. Despacho por código QR (conductores)</b></summary>
+
+1. **El administrador:**
+   - va a **Conductores → Gestionar QR → Generar código**;
+   - pulsa **Imprimir tarjeta** y la pega en la cabina.
+   
+   La credencial vale 180 días y se puede **revocar** o **renovar** en cualquier momento.
+2. **El conductor:**
+   - escanea el QR con la cámara del celular;
+   - completa origen, destino y kilometraje de salida;
+   - pulsa **Registrar e iniciar viaje**.
+3. **Sin señal:** el viaje queda guardado en el teléfono y se envía con **Reintentar envío**.
+</details>
+
+<details>
+<summary><b>6. Mantenimiento y prioridad</b></summary>
+
+- **Mantenimiento → Nuevo mantenimiento:**
+  - tipo: aceite, filtros, llantas, frenos, bocines u otro;
+  - categoría: preventivo, correctivo o programado por km;
+  - kilometraje programado.
+- Las **alertas** aparecen arriba de la lista cuando un mantenimiento está vencido o próximo.
+- **«Qué reparar primero»** ordena los pendientes con el AHP según seguridad, urgencia y costo. El primero de la lista es el que conviene atender primero.
+- Con **Completar** se registran el kilometraje real, la fecha y el costo del mantenimiento hecho.
+</details>
+
+<details>
+<summary><b>7. Costos fijos, reportes y usuarios (administrador)</b></summary>
+
+- **Costos:**
+  - por vehículo: depreciación, capital, seguro, impuestos y otros;
+  - por conductor: sueldo y beneficios.
+
+  Cada uno se registra como monto mensual o anual, con su vigencia; el sistema lo prorratea por días.
+- **Reportes:** elige el vehículo, el período y el IVA, y pulsa **Excel** o **PDF**.
+- **Usuarios:**
+  - para crear una cuenta, pulsa **Nuevo usuario**; la contraseña necesita al menos 8 caracteres, con letras y números;
+  - con **Editar** se cambia el rol o la contraseña, o se desactiva la cuenta.
+</details>
+
+---
+
+## 🛠️ Instalación y guía técnica
+
+### Requisitos
+| Programa | Para qué |
+|---|---|
+| [Git](https://git-scm.com/downloads) | Clonar el repositorio |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Ejecutar todo: los 3 servicios, la base de datos, el gateway y el frontend |
+
+No hace falta instalar Python, Node.js ni PostgreSQL: todo corre en contenedores.
+
+### Puesta en marcha (5 minutos)
+```bash
+git clone https://github.com/rvivancov-del/control_flota.git
+cd control_flota
+docker compose up --build -d
+docker compose ps        # los 6 contenedores deben estar «Up» o «healthy»
+```
+
+| Dirección | Qué es |
+|---|---|
+| http://localhost:5173 | La aplicación |
+| http://localhost:8080/api | El gateway, puerta de entrada al backend |
+
+**Usuario inicial (solo para el entorno local de prueba):** `admin` / `Admin1234`.
+- Lo crea `services/auth-service/app/seed.py` en el primer arranque.
+- Fuera del modo de desarrollo, el sistema exige una clave propia y pide cambiarla al primer ingreso.
+
+**Datos de prueba:** la base de prueba ficticia (12 vehículos, 13 conductores y 640 viajes) está en `scripts/seed/pilot_dataset.sql`. Las instrucciones para cargarla están en [`scripts/README.md`](scripts/README.md).
+
+### Comandos útiles
+| Comando | Qué hace |
+|---|---|
+| `docker compose up --build -d` | Construye y levanta todo en segundo plano |
+| `docker compose ps` | Muestra el estado de cada contenedor |
+| `docker compose logs <servicio>` | Muestra los registros de un servicio (por ejemplo, `fleet-core-service`) |
+| `docker compose restart gateway` | Arregla el error «No se pudo conectar con el servidor» si el gateway arrancó antes que los servicios |
+| `docker compose down` | Detiene todo; los datos se conservan |
+| `docker compose down -v` | Detiene todo y **borra** la base de datos local |
+| `docker compose exec -T postgres pg_dump -U flota -d flota_db --clean --if-exists > respaldo.sql` | Respaldo de la base |
+| `docker compose exec -T postgres psql -U flota -d flota_db < respaldo.sql` | Restaura un respaldo |
+| `docker compose -f docker-compose.prod.yml up -d` | Producción local con HTTPS: imágenes multietapa, sin usuario root, secretos en `.env.prod`. Ver `.env.prod.example` |
+
+### Solución de problemas
+| Síntoma | Causa y solución |
+|---|---|
+| «No se pudo conectar con el servidor» al iniciar sesión | El gateway arrancó antes que los servicios: `docker compose restart gateway` |
+| `docker` no se reconoce o *failed to connect to the docker API* | Docker Desktop no está abierto: ábrelo y espera a que diga *Engine running* |
+| *port is already allocated* | Otro programa usa el puerto 5173 u 8080: ciérralo o cambia el puerto de la izquierda en `docker-compose.yml` (por ejemplo, `8090:80`) |
+| Un contenedor queda en *Exited* o *Restarting* | Revisa el motivo con `docker compose logs <servicio>` y luego ejecuta `docker compose restart <servicio>` |
+| Cambié código y no se ve | Reconstruye ese servicio: `docker compose up --build -d <servicio>` |
+| El QR no abre en el celular | El celular debe estar en la misma red Wi-Fi. Genera el QR con la IP de la computadora (por ejemplo, `http://192.168.1.37:5173`), no con `localhost` |
+
+### Pruebas
+```bash
+docker compose exec <servicio> sh -c "pip install -q -r requirements-test.txt && pytest -q"
+```
+La integración continua (`.github/workflows/ci.yml`) corre las pruebas en cada cambio.
+
+---
+
+## 🏗️ Arquitectura
+
+<div align="center"><img src="docs/diagramas/arquitectura_contenedores.png" alt="Arquitectura de contenedores" width="85%"></div>
 
 | Componente | Responsabilidad |
 |---|---|
 | `auth-service` | Usuarios, roles, contraseñas con hash, JWT y bloqueo temporal |
-| `fleet-core-service` | Vehículos, conductores, viajes, gastos, mantenimiento, costos fijos y despacho QR |
-| `reporting-service` | Tablero, indicadores de costo, ranking AHP y reportes; no tiene base propia, consulta a `fleet-core-service` con el token del usuario |
-| `gateway` (Nginx) | Punto único de entrada: rutas `/api/auth`, `/api/fleet`, `/api/reports`, límite de solicitudes y HTTPS en producción |
-| `postgres` | Una instancia con dos esquemas, `auth` y `fleet`, cada uno con su propio rol de base de datos |
-| `frontend` | Aplicación de una sola página (React + TypeScript + Vite), con el panel web y el portal móvil del conductor |
+| `fleet-core-service` | Vehículos, conductores, viajes, gastos, mantenimiento, costos fijos y de personal, despacho QR |
+| `reporting-service` | Tablero, modelo de costos, ranking AHP y reportes. No tiene base propia: consulta a `fleet-core-service` con el token del usuario |
+| `gateway` (Nginx) | Punto único de entrada (`/api/auth`, `/api/fleet`, `/api/reports`), límite de solicitudes y HTTPS en producción |
+| `postgres` | Una instancia con los esquemas `auth` y `fleet`, cada uno con su propio rol |
+| `frontend` | React + TypeScript + Vite: el panel web y el portal móvil del conductor |
 
 **Por qué microservicios.** Se compararon tres estilos con una matriz ponderada:
 
 | Estilo | Puntaje |
 |---|---|
-| Microservicios | 3,95 |
+| **Microservicios** | **3,95** |
 | Monolito modular | 3,60 |
 | Monolito en capas | 3,35 |
 
-Ganaron por el aislamiento de los datos personales y el despliegue independiente de cada parte, **no por rendimiento**:
-en rendimiento y en costo de operación gana el monolito.
-
-**Despliegue**
+Los microservicios ganan por el **aislamiento de los datos personales** y por el **despliegue independiente** de cada servicio. No ganan por rendimiento: en rendimiento y en costo de operación gana el monolito.
 
 | Producción local con HTTPS (verificado) | Cloud Run (propuesto, no desplegado) |
-|---|---|
-| ![Despliegue B](docs/diagramas/despliegue_b_produccion_local.png) | ![Despliegue C](docs/diagramas/despliegue_c_cloud_run_propuesto.png) |
+|:---:|:---:|
+| <img src="docs/diagramas/despliegue_b_produccion_local.png" alt="Despliegue local"> | <img src="docs/diagramas/despliegue_c_cloud_run_propuesto.png" alt="Despliegue Cloud Run"> |
 
-## 5. Diseño: UML y modelo de datos
+## 📐 Diseño UML y modelo de datos
 
-<details open>
-<summary><b>Casos de uso</b></summary>
+<details open><summary><b>Casos de uso</b></summary><br><img src="docs/diagramas/casos_de_uso.png" alt="Casos de uso"></details>
+<details><summary><b>Secuencia: ranking AHP de mantenimientos</b></summary><br><img src="docs/diagramas/secuencia_ranking_ahp.png" alt="Secuencia ranking AHP"></details>
+<details><summary><b>Secuencia: emisión y despacho por código QR</b></summary><br><img src="docs/diagramas/secuencia_emision_qr.png" alt="Emisión QR"><img src="docs/diagramas/secuencia_despacho_qr.png" alt="Despacho QR"></details>
+<details><summary><b>Secuencia: cierre del viaje y alerta de mantenimiento</b></summary><br><img src="docs/diagramas/secuencia_cierre_viaje_alerta.png" alt="Cierre de viaje"></details>
+<details><summary><b>Colaboración y estados</b></summary><br><img src="docs/diagramas/colaboracion_registrar_gasto.png" alt="Colaboración"><img src="docs/diagramas/estados_viaje.png" alt="Estados del viaje"></details>
+<details><summary><b>Actividades y flujo de trabajo por carriles</b></summary><br><img src="docs/diagramas/actividades_flujo_operativo.png" alt="Actividades"><img src="docs/diagramas/flujo_trabajo_carriles.png" alt="Flujo de trabajo"></details>
+<details><summary><b>Modelo entidad-relación (9 tablas)</b></summary><br><img src="docs/diagramas/modelo_entidad_relacion_1.png" alt="ER parte 1"><img src="docs/diagramas/modelo_entidad_relacion_2.png" alt="ER parte 2"></details>
 
-![Casos de uso](docs/diagramas/casos_de_uso.png)
-</details>
-
-<details>
-<summary><b>Secuencia: ranking AHP de mantenimientos</b></summary>
-
-El navegador pide el ranking al gateway. `reporting-service` valida el token y el rol, pide a `fleet-core` los vehículos,
-la política de alertas, los costos históricos y los mantenimientos pendientes, y calcula el puntaje AHP.
-
-![Secuencia ranking AHP](docs/diagramas/secuencia_ranking_ahp.png)
-</details>
-
-<details>
-<summary><b>Secuencia: emisión y despacho por código QR</b></summary>
-
-El administrador emite la credencial; el conductor la escanea y el token viaja en la cabecera `X-Despacho-Token`. El
-servidor compara el resumen (hash) en tiempo constante y verifica la vigencia.
-
-![Emisión QR](docs/diagramas/secuencia_emision_qr.png)
-![Despacho QR](docs/diagramas/secuencia_despacho_qr.png)
-</details>
-
-<details>
-<summary><b>Secuencia: cierre del viaje y alerta de mantenimiento</b></summary>
-
-![Cierre de viaje](docs/diagramas/secuencia_cierre_viaje_alerta.png)
-</details>
-
-<details>
-<summary><b>Colaboración, estados, actividades y flujo de trabajo</b></summary>
-
-![Colaboración](docs/diagramas/colaboracion_registrar_gasto.png)
-![Estados del viaje](docs/diagramas/estados_viaje.png)
-![Actividades](docs/diagramas/actividades_flujo_operativo.png)
-![Flujo de trabajo por carriles](docs/diagramas/flujo_trabajo_carriles.png)
-</details>
-
-<details>
-<summary><b>Modelo entidad-relación (9 tablas, esquemas auth y fleet)</b></summary>
-
-![ER parte 1](docs/diagramas/modelo_entidad_relacion_1.png)
-![ER parte 2](docs/diagramas/modelo_entidad_relacion_2.png)
-</details>
-
-## 6. Priorización del mantenimiento con AHP
-
-El ranking combina tres criterios con pesos del Proceso de Análisis Jerárquico (Saaty):
+## 🧮 Priorización con AHP
 
 | Criterio | Peso |
-|---|---|
-| Seguridad (criticidad del tipo de mantenimiento) | 0,633 |
-| Urgencia por kilometraje | 0,260 |
-| Costo estimado | 0,106 |
+|---|:---:|
+| 🛡️ Seguridad (criticidad del tipo de mantenimiento) | **0,633** |
+| ⏱️ Urgencia por kilometraje | **0,260** |
+| 💲 Costo estimado | **0,106** |
 
-- **Consistencia:** razón de consistencia CR = 0,0334, menor que 0,10. **El servicio no arranca** si la matriz
-  configurada es inconsistente (CR ≥ 0,10).
-- **Estabilidad:** el orden se mantiene con cambios de ±30 % en los pesos (τ de Kendall mínima de 0,935).
-- **Matriz provisional:** la matriz actual la definió la autora y se reemplazará con los juicios de 3 a 5 expertos.
-  Los pesos están en `services/reporting-service/app/dashboards/ahp_config.json`, no en el código.
+- **Consistencia:** razón de consistencia CR = **0,0334**, menor que 0,10. **El servicio no arranca** si la matriz es inconsistente (CR ≥ 0,10).
+- **Estabilidad:** el ranking se mantiene con cambios de ±30 % en los pesos (τ de Kendall mínima de 0,935).
+- **Configuración:** los pesos están en `services/reporting-service/app/dashboards/ahp_config.json`. La matriz actual es provisional y se reemplazará con los juicios de 3 a 5 expertos.
 
-## 7. Pruebas y calidad
+## ✅ Pruebas y calidad
 
 | Servicio | Pruebas | Aprobadas | Omitidas |
-|---|---|---|---|
+|---|:---:|:---:|:---:|
 | auth-service | 89 | 89 | 0 |
-| fleet-core-service | 546 | 545 | 1 |
+| fleet-core-service | 546 | 545 | 1* |
 | reporting-service | 273 | 273 | 0 |
 | **Total** | **908** | **907** | **1** |
 
+<sub>* La prueba del límite de intentos del QR bloquea el gateway durante un minuto; solo corre con `RUN_RATE_LIMIT_TESTS=1`.</sub>
+
 - **Pruebas de integración:** envían peticiones HTTP reales a través del gateway, con autenticación y roles.
-- **Prueba omitida:** comprueba el límite de intentos del QR. Bloquea el gateway durante un minuto, así que solo corre
-  con `RUN_RATE_LIMIT_TESTS=1`.
-- **Cobertura:** 80 % en total y entre 69 y 94 % por servicio (meta: 60 %).
-- **Prueba de carga (k6):** el tablero responde con un p95 de 1,19 s con 10 usuarios (meta: menos de 2 s).
+- **Cobertura:** 80 % (de 69 a 94 % por servicio).
+- **Carga (k6):** p95 de 1,19 s con 10 usuarios a la vez.
 - **Benchmark con un millón de viajes:** las consultas por vehículo o por viaje son de 6 a 10 veces más rápidas con índices.
-- **Integración continua:** GitHub Actions corre las pruebas en cada cambio (`.github/workflows/ci.yml`).
 
-## 8. Cómo ejecutarlo
-
-Requisitos: **Git** y **Docker Desktop** (no hace falta instalar Python, Node.js ni PostgreSQL).
-
-```bash
-git clone https://github.com/rvivancov-del/control_flota.git
-cd control_flota
-docker compose up --build
-```
-
-Para trabajar con la base de prueba ficticia (12 vehículos, 13 conductores, 640 viajes), sigue `scripts/README.md` (`seed_demo.py` y carga de `scripts/seed/pilot_dataset.sql`).
-
-Detalle:
-
-
-1. `docker-compose.yml` lee directamente los `.env.example` de cada
-   servicio (valores de prueba locales, sin secretos reales — por eso
-   están versionados). Antes de un despliegue real, crea un `.env` propio
-   por servicio y cambia la referencia `env_file`.
-2. Desde esta carpeta:
-
-   ```bash
-   docker compose up --build
-   ```
-
-3. Servicios disponibles:
-   - Frontend: http://localhost:5173
-   - API (gateway): http://localhost:8080/api/auth/... · /api/fleet/... · /api/reports/...
-   - PostgreSQL: no se publica en el equipo (solo lo ven los servicios). Consola: `docker compose exec postgres psql -U flota -d flota_db`
-   - Usuario inicial: `admin` / `Admin1234` (creado por `auth-service/app/seed.py`
-     en el primer arranque — cámbialo antes de cualquier despliegue real).
-   - Los `.env.example` traen `APP_ENV=development`. Sin esa variable (o con otro valor) los servicios
-     **no arrancan** con la clave JWT ni la contraseña de base de datos por defecto, y el sembrado exige
-     una clave inicial propia para el administrador y le pide cambiarla al primer ingreso (RNF-02).
-
-#### Generar una migración nueva (al cambiar un modelo)
-
-```bash
-docker compose run --rm --no-deps -v "$(pwd)/services/<servicio>:/app" <servicio> \
-  alembic revision --autogenerate -m "descripción del cambio"
-```
-
-Revisa siempre el archivo generado en `migrations/versions/` antes de
-aplicarlo. `docker compose up --build` lo aplica automáticamente al iniciar
-(`alembic upgrade head` corre antes de `uvicorn`, ver el `CMD` del Dockerfile).
-
-#### Correr las pruebas de un servicio
-
-```bash
-docker compose exec <servicio> sh -c "pip install -q -r requirements-test.txt && pytest -q"
-```
-
-### Solución de problemas
-
-#### "404 Not Found" en cualquier ruta `/api/...` después de reconstruir un servicio
-
-El `gateway` (nginx) resuelve el nombre de cada servicio (`auth-service`,
-`fleet-core-service`, `reporting-service`) **una sola vez**, al arrancar, y
-cachea la IP interna de Docker que le corresponde en ese momento. Si luego
-reconstruyes o recreas SOLO uno de esos servicios
-(`docker compose up --build auth-service`, por ejemplo) sin tocar el
-gateway, el contenedor nuevo recibe una IP distinta y nginx se queda
-apuntando a la vieja. Solución:
-
-```bash
-docker compose restart gateway
-```
-
-Corre ese comando cada vez que reconstruyas un servicio por separado.
-`docker compose up --build` (todos juntos) no tiene este problema porque el
-gateway también se recrea en la misma pasada. Es una limitación exclusiva
-del entorno local — no existe en producción (Cloud Run resuelve por
-HTTPS/DNS público, no por IP interna de una red Docker).
-
-#### El conductor abre el QR y el navegador de su celular no conecta
-
-El código QR codifica el `window.location.origin` de quien lo generó. Si el
-panel de administración se abrió en `localhost`, el QR apunta a
-`localhost:5173` — que en el celular del conductor se refiere al propio
-celular, no a la computadora del administrador. Para pruebas en la misma
-red local, abre el panel desde la IP de red de la computadora (por ejemplo
-`http://192.168.1.37:5173`) antes de generar el QR. Para que funcione desde
-cualquier lugar con internet (el caso de uso real), hace falta el
-despliegue a la nube — ver `10_MANUALES_USUARIO_Y_TECNICO/manual_tecnico.docx`.
-
-
-## 9. Estructura del repositorio
+## 📁 Estructura del repositorio
 
 ```
 control_flota/
 ├── docker-compose.yml          # entorno local completo
 ├── docker-compose.prod.yml     # producción local con HTTPS
-├── infra/
-│   ├── nginx/                  # gateway
-│   └── postgres/               # un rol por servicio, dueño de su esquema
+├── infra/                      # nginx (gateway) y postgres (un rol por servicio)
 ├── services/
 │   ├── auth-service/           # usuarios, roles y JWT
 │   ├── fleet-core-service/     # flota, viajes, gastos, mantenimiento, costos y QR
 │   └── reporting-service/      # tablero, costos, AHP y reportes
-├── frontend/                   # React + TypeScript (panel y portal del conductor)
-├── scripts/                    # datos de prueba, informes, benchmark y prueba de carga
-└── docs/                       # capturas, diagramas y recorrido animado de este README
+├── frontend/                   # React + TypeScript: panel y portal del conductor
+├── scripts/                    # datos de prueba, informes, benchmark, carga y capturas del README
+└── docs/                       # banner, capturas, diagramas y videos
 ```
 
-Cada servicio tiene su propio `README.md`, con sus endpoints y decisiones de diseño.
-
-## 10. Alcance y trabajo futuro
+## 🗺️ Alcance y trabajo futuro
 
 - **Fuera del alcance:**
   - GPS en tiempo real;
-  - notificaciones por SMS o WhatsApp;
-  - control de vencimiento de documentos (SOAT, matrícula);
+  - SMS o WhatsApp;
+  - vencimiento de documentos (SOAT, matrícula);
   - facturación electrónica;
   - mantenimiento basado en sensores.
 - **Siguiente etapa:**
-  - validar los costos con un mes de datos reales de la empresa caso;
-  - reemplazar la matriz AHP por los juicios de 3 a 5 expertos;
-  - validar con usuarios (tareas cronometradas y cuestionario SUS);
-  - desplegar en Cloud Run.
+  - validar los costos con un mes de datos reales;
+  - pesos AHP de 3 a 5 expertos;
+  - pruebas con usuarios (tareas cronometradas y SUS);
+  - despliegue en Cloud Run.
 
 ---
 
-© 2026 Rosa Margarita Vivanco Vélez — Universidad Estatal de Milagro. Trabajo de titulación con fines académicos.
+<div align="center">
+<sub>© 2026 <b>Rosa Margarita Vivanco Vélez</b> · Universidad Estatal de Milagro · Trabajo de titulación con fines académicos.</sub>
+</div>
