@@ -25,7 +25,7 @@
   </g>
   <text x="215" y="150" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#FFFFFF">FlotaControl</text>
   <text x="219" y="196" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="26" fill="#C9D6E3">Cada kilómetro, bajo control.</text>
-  <text x="219" y="238" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" fill="#9FB3C8">Costos operativos · Mantenimiento con AHP · Despacho por código QR · Microservicios</text>
+  <text x="219" y="238" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" fill="#9FB3C8">Costos · Mantenimiento con AHP · Despacho por QR</text>
   <!-- ruta -->
   <line x1="880" y1="236" x2="1220" y2="236" stroke="#E87D1E" stroke-width="5" stroke-dasharray="22 16" stroke-linecap="round"/>
   <g transform="translate(1010 200)" fill="none" stroke="#E87D1E" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
