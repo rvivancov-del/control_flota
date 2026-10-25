@@ -16,7 +16,7 @@ def _env_int(name: str, default: int, low: int, high: int) -> int:
     try:
         value = int(raw)
     except ValueError:
-        raise ValueError(f"{name} debe ser un entero, se recibió {raw!r}")
+        raise ValueError(f"{name} debe ser un entero, se recibió {raw!r}") from None
     if not low <= value <= high:
         raise ValueError(f"{name}={value} fuera de [{low}, {high}]")
     return value

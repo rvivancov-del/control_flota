@@ -1,7 +1,7 @@
 """Filtro por rango de fechas sobre columnas de fecha y hora con zona horaria (timestamptz).
 
-Antes se filtraba con `func.date(Trip.departure_at) >= date_from`: aplicar una función a la columna impide
-que PostgreSQL use un índice sobre ella y obliga a recorrer toda la tabla. Aquí el rango de días se
+No se filtra con `func.date(Trip.departure_at) >= date_from`: aplicar una función a la columna impide que
+PostgreSQL use un índice sobre ella y obliga a recorrer toda la tabla. En su lugar, el rango de días se
 convierte en límites de instante, `columna >= inicio AND columna < fin`, que sí aprovecha un índice.
 
 Los días se cuentan en UTC, como cuando la zona horaria de la sesión es UTC (que fija app/core/database.py):

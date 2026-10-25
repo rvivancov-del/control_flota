@@ -15,7 +15,7 @@ import type {
   VehicleAttentionResponse,
 } from "../types/reports";
 
-// Mismo criterio que apiClient.ts: usar el host real de la pagina, no un
+// Mismo criterio que apiClient.ts: usar el host real de la página, no un
 // "localhost" fijo que se rompe al abrir el panel desde otro dispositivo
 // en la red local.
 const BASE_URL = () =>

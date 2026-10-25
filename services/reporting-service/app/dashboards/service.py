@@ -124,7 +124,7 @@ def build_dashboard_summary(
     iva_mode: Optional[str] = None,
     include_fixed: bool = False,
 ) -> DashboardSummary:
-    """RF-15 + RF-16 + modelo de costos de la Fase 3.
+    """RF-15 + RF-16 + modelo de costos completo.
 
     Por vehículo y para la flota entrega el gasto operativo (costos variables), su composición y, en
     `costs` / `fleet_costs`, el modelo completo: Ct = Cv + Cf, costos, ingreso y utilidad por km,
@@ -134,7 +134,7 @@ def build_dashboard_summary(
     sin importar cuántos viajes o gastos haya en el período.
 
     - `category` acota solo `total_cost` (KPI y columna "Total"); el desglose y los indicadores
-      (margen, utilidad) NO cambian con el filtro: antes el margen se calculaba contra el costo filtrado.
+      (margen, utilidad) NO cambian con el filtro: el margen siempre se calcula contra el costo completo.
     - `include_fixed` (solo el rol admin) suma los costos fijos por vehículo y el personal, este último
       repartido entre vehículos según los km de cada conductor. Requiere `date_from` y `date_to`,
       porque los costos fijos se prorratean por días.
@@ -338,7 +338,7 @@ def build_driver_summary(
     Solo para el admin (`include_fixed`) y con período: el costo de personal del conductor y su
     productividad laboral LP = ingreso / personal (Kutac et al., 2022). Los sueldos son información
     sensible: los demás roles no los ven. `margin` es el margen de contribución (ingreso − gasto
-    operativo del conductor) y ya no depende del filtro de categoría."""
+    operativo del conductor) y no depende del filtro de categoría."""
     mode = _iva_mode(iva_mode)
     rates = iva_config.CONFIG.rates
     category = category if category in VALID_CATEGORIES and category != "mantenimiento" else None
@@ -494,9 +494,8 @@ def build_cost_trend(
 def _maintenance_by_vehicle(
     client: FleetClient, vehicle_id: Optional[str] = None, status_filter: Optional[str] = None
 ) -> dict[str, list[dict]]:
-    """Mantenimientos de la flota agrupados por vehículo, con UNA llamada a fleet-core (antes, una por
-    vehículo: cuatro consultas del tablero pedían 12 historiales cada una con la flota piloto, y la
-    cantidad crecía con la flota). Dentro de cada vehículo se conserva el orden del más reciente al más
+    """Mantenimientos de la flota agrupados por vehículo, con UNA llamada a fleet-core, sin importar
+    cuántos vehículos tenga la flota (una llamada por vehículo haría crecer el costo con la flota). Dentro de cada vehículo se conserva el orden del más reciente al más
     antiguo."""
     grouped: dict[str, list[dict]] = defaultdict(list)
     for record in client.list_maintenance_records(vehicle_id, status_filter):
@@ -690,9 +689,9 @@ def build_maintenance_priority(
     plate_by_id = {v["id"]: v["plate"] for v in vehicles}
     policy = client.maintenance_policy()
 
-    # Costo historico promedio por tipo de mantenimiento, agregado sobre
-    # TODA la flota (no solo el vehiculo en cuestion) para tener una muestra
-    # razonable incluso con una flota piloto pequena.
+    # Costo histórico promedio por tipo de mantenimiento, agregado sobre
+    # TODA la flota (no solo el vehículo en cuestión) para tener una muestra
+    # razonable incluso con una flota piloto pequeña.
     cost_sum_by_type: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     cost_count_by_type: dict[str, int] = defaultdict(int)
     for row in client.maintenance_aggregate():

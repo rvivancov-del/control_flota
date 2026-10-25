@@ -1,3 +1,6 @@
+/**
+ * Ruta /login · pública · RF-02. Inicio de sesión; el token JWT lo emite auth-service (POST /api/auth/login).
+ */
 import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";

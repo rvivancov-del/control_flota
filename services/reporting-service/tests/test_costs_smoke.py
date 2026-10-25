@@ -1,5 +1,5 @@
 """
-Pruebas de integración del modelo de costos (Fase 3) a través del gateway: los costos fijos y de personal
+Pruebas de integración del modelo de costos a través del gateway: los costos fijos y de personal
 cargados por el admin llegan al tablero con el devengo esperado, el operador no los ve, el IVA neto
 llega hasta la respuesta y las exportaciones traen la estructura del costo. Escriben y borran costos de
 prueba; correrlas contra una base desechable (FLOTA_BASE_URL).

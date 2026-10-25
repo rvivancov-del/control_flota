@@ -1,3 +1,7 @@
+/**
+ * Ruta /conductores · admin edita, operador consulta · RF-05, RF-18.
+ * Conductores y su credencial QR de despacho. API: fleet-core-service (/api/fleet/drivers).
+ */
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, QrCode, RefreshCw } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";

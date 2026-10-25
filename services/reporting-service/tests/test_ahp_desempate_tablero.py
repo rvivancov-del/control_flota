@@ -8,7 +8,7 @@ from app.dashboards import service
 
 VEHICULOS = [{"id": str(uuid.UUID(int=i)), "plate": f"TST-{i}", "brand": "M", "model": "X", "current_mileage_km": 50_000} for i in (1, 2, 3)]
 # Mismo tipo y los tres vencidos (urgencia 1,0): mismo puntaje. fleet-core los devuelve del menos al más vencido.
-KM = dict(zip((v["id"] for v in VEHICULOS), (-50, None, -900)))
+KM = dict(zip((v["id"] for v in VEHICULOS), (-50, None, -900), strict=True))
 
 
 class Flota:

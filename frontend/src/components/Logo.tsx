@@ -1,3 +1,6 @@
+/**
+ * Marca FlotaControl (logotipo vectorial) usada en el menú lateral y en las pantallas de acceso.
+ */
 import { Truck } from "lucide-react";
 
 type LogoProps = {

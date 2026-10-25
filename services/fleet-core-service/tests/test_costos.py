@@ -1,4 +1,4 @@
-"""Pruebas unitarias de los costos fijos y de personal (Fase 3): prorrateo por días con cálculos
+"""Pruebas unitarias de los costos fijos y de personal: prorrateo por días con cálculos
 hechos a mano y validación de esquemas. No requieren el stack ni la base de datos."""
 import importlib.util
 import uuid

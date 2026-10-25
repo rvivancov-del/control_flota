@@ -1,3 +1,9 @@
+/**
+ * Ruta /mantenimiento · todos los roles · RF-11 a RF-13, RF-20.
+ * Registros de mantenimiento, alertas por kilometraje y prioridad AHP.
+ * API: fleet-core-service (/api/fleet/vehicles/{id}/maintenance, /api/fleet/maintenance/*) y
+ * reporting-service (/api/reports/dashboard/maintenance-priority).
+ */
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import AppShell from "../components/AppShell";

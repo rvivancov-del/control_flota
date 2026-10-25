@@ -1,3 +1,7 @@
+/**
+ * Estructura común de las páginas autenticadas: menú lateral filtrado por rol (nav.ts),
+ * encabezado con el usuario en sesión y cierre de sesión.
+ */
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, LogOut } from "lucide-react";

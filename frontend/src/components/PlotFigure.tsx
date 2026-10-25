@@ -1,3 +1,7 @@
+/**
+ * Adaptador de Observable Plot a React: lo usan las gráficas del tablero y de reportes
+ * (definidas en charts/expensePlots.ts).
+ */
 import { useEffect, useRef } from "react";
 
 type PlotFigureProps = {

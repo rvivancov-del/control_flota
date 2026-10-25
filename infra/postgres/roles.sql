@@ -1,15 +1,15 @@
--- Aislamiento de los esquemas por servicio (Fase 5).
+-- Aislamiento de los esquemas por servicio.
 --
--- Antes, los tres servicios se conectaban con el mismo usuario (el superusuario de la instancia) y la
--- separación entre esquemas era solo una convención: cualquier servicio podía leer y escribir las tablas
--- de otro. Aquí cada servicio que usa la base de datos tiene su propio rol, dueño de su esquema y sin
+-- Si los tres servicios se conectaran con el mismo usuario (el superusuario de la instancia), la separación
+-- entre esquemas sería solo una convención: cualquier servicio podría leer y escribir las tablas de otro.
+-- Por eso cada servicio que usa la base de datos tiene su propio rol, dueño de su esquema y sin
 -- ningún permiso sobre el del otro:
 --
 --     auth-service        ->  flota_auth   ->  esquema auth
 --     fleet-core-service  ->  flota_fleet  ->  esquema fleet
 --     reporting-service   ->  (no usa la base de datos: obtiene los datos de fleet-core por HTTP)
 --
--- El superusuario de la instancia (POSTGRES_USER) queda para administrar y ya no lo usa ningún servicio.
+-- El superusuario de la instancia (POSTGRES_USER) queda solo para administrar: ningún servicio lo usa.
 --
 -- Es idempotente: sirve tanto para una base nueva (lo invoca infra/postgres/init.sh la primera vez que
 -- arranca el volumen) como para una base que ya existe (scripts/apply_db_roles.py), donde además transfiere

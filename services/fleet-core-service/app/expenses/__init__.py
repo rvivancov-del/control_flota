@@ -1,1 +1,1 @@
-# RF-08, RF-09, RF-10: gastos de combustible, peajes y alimentación por viaje.
+"""Gastos operativos por viaje: combustible, peajes y alimentación (RF-08 a RF-10)."""

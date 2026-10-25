@@ -1,9 +1,9 @@
-// Se deriva del host con el que el navegador cargó la pagina (no un
+// Se deriva del host con el que el navegador cargó la página (no un
 // "localhost" fijo): si el conductor abre el enlace del QR desde la IP de
 // red local de la computadora (p. ej. http://192.168.1.23:5173), las
 // llamadas a la API deben ir a esa misma IP en el puerto del gateway, no a
 // "localhost" -- que en el celular del conductor se refiere al propio
-// celular y nunca encontraria el backend.
+// celular y nunca encontraría el backend.
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8080/api`;
 

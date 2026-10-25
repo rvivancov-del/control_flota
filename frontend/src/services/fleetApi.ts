@@ -72,7 +72,7 @@ export const fleetApi = {
   createExpense: (token: string, tripId: string, payload: ExpenseInput) =>
     apiClient.post<Expense>(`/fleet/trips/${tripId}/expenses`, payload, token),
 
-  // Costos fijos por vehículo y de personal por conductor (Fase 3): solo el rol admin.
+  // Costos fijos por vehículo y de personal por conductor (modelo de costos): solo el rol admin.
   listFixedCosts: (token: string) => apiClient.get<FixedCost[]>("/fleet/fixed-costs", token),
   createFixedCost: (token: string, payload: FixedCostInput) => apiClient.post<FixedCost>("/fleet/fixed-costs", payload, token),
   updateFixedCost: (token: string, id: string, payload: Partial<FixedCostInput>) =>

@@ -123,7 +123,7 @@ export type ReportFilters = {
   date_from?: string;
   date_to?: string;
   category?: ExpenseCategory;
-  /** Fase 3: bruto (montos pagados) o neto (sin IVA). */
+  /** Modo de IVA: bruto (montos pagados) o neto (sin IVA). */
   iva_mode?: IvaMode;
 };
 

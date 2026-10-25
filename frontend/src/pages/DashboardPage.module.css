@@ -512,7 +512,7 @@
   flex-basis: 100%;
 }
 
-/* Fase 3 — modelo de costos: interruptor de IVA y estructura de costos */
+/* Modelo de costos: interruptor de IVA y estructura de costos */
 .ivaToggle {
   display: flex;
   gap: 0.2rem;

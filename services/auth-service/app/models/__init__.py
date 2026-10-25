@@ -1,4 +1,4 @@
-# Modelos ORM del esquema "auth": roles y usuarios.
+"""Modelos ORM del esquema auth."""
 from app.models.role import Role
 from app.models.user import User
 

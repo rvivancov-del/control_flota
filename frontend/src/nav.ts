@@ -1,3 +1,7 @@
+/**
+ * Menú de módulos del sistema: ruta, nombre, descripción, ícono y si es exclusivo del rol admin.
+ * Lo consumen el menú lateral (AppShell) y las tarjetas del tablero.
+ */
 import { FileSpreadsheet, Route, Truck, UserRound, Users, Wallet, Wrench, type LucideIcon } from "lucide-react";
 
 export type NavItem = {

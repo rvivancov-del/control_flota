@@ -11,6 +11,7 @@ pila de verificación (ver scripts/README.md, "Pila de verificación aislada"):
 
 El informe no se edita a mano: la cifra que cite el documento sale de aquí.
 """
+import argparse
 import ast
 import subprocess
 import sys
@@ -67,6 +68,12 @@ def git(*args: str) -> str:
 
 
 def main() -> None:
+    global XML_DIR, OUT
+    ap = argparse.ArgumentParser(description="Informe de pruebas desde los JUnit XML de las tres suites.")
+    ap.add_argument("--xml-dir", default=XML_DIR.name, help="carpeta de los XML dentro de 12_RESULTADOS_OBTENIDOS (por defecto: pruebas)")
+    ap.add_argument("--salida", default=OUT.name, help="informe a escribir en 12_RESULTADOS_OBTENIDOS (por defecto: pruebas_avance2.md)")
+    args = ap.parse_args()
+    XML_DIR, OUT = RES / args.xml_dir, RES / args.salida
     datos = {s: leer(s) for s in SERVICIOS}
     total = sum(d["tests"] for d in datos.values())
     fallas = sum(d["fallas"] for d in datos.values())
@@ -77,7 +84,7 @@ def main() -> None:
 
     w = ["# Evidencia de pruebas del prototipo", "",
          "*Generado por `sistema-control-flota/scripts/gen_informe_pruebas.py` desde los JUnit XML de "
-         "`pruebas/`. No se edita a mano: se regenera.*", "",
+         f"`{XML_DIR.name}/`. No se edita a mano: se regenera.*", "",
          "## 1. Ejecución", "",
          f"- Fecha de la ejecución: {fecha} (hora del contenedor, UTC).",
          f"- Versión del código: rama `{git('branch', '--show-current')}`, commit `{git('rev-parse', '--short', 'HEAD')}`.",

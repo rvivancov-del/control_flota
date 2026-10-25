@@ -1,3 +1,7 @@
+/**
+ * Guardas de navegación: exige sesión iniciada (RF-02) y obliga a cambiar la contraseña
+ * inicial antes de usar el sistema (RNF-02).
+ */
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";

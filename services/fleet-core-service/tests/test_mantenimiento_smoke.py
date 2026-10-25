@@ -1,5 +1,5 @@
 """
-Pruebas de integración de GET /maintenance (Fase 5): el historial de mantenimientos de toda la flota
+Pruebas de integración de GET /maintenance: el historial de mantenimientos de toda la flota
 en una sola consulta debe coincidir, registro por registro, con lo que devuelve el historial de cada
 vehículo por separado, y aceptar sus filtros. Solo leen datos.
 """

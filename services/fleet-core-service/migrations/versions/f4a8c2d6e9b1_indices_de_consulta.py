@@ -1,4 +1,4 @@
-"""indices de consulta sobre viajes, gastos y mantenimientos (Fase 5)
+"""indices de consulta sobre viajes, gastos y mantenimientos
 
 Hasta ahora las unicas estructuras de acceso eran las claves primarias y las restricciones unicas: cada
 consulta del tablero y cada filtro de RF-14 recorria la tabla completa. Los indices salen de las

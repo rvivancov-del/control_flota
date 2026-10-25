@@ -1,5 +1,5 @@
 """Benchmark de las consultas de fleet-core-service a 10^3, 10^5 y 10^6 viajes, sin y con los índices de la migración
-f4a8c2d6e9b1 (Fase 5). Genera 12_RESULTADOS_OBTENIDOS/benchmark_consultas.md.
+f4a8c2d6e9b1. Genera 12_RESULTADOS_OBTENIDOS/benchmark_consultas.md.
 
 Por cada escala: crea una base desechable `flota_bench` dentro de la pila indicada, aplica las migraciones hasta la
 anterior a los índices, carga datos sintéticos con generate_series, mide las consultas (scripts/bench/measure.py,

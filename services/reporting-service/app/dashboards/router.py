@@ -50,7 +50,7 @@ def _iva_query(
         None, description="'bruto' (montos pagados, con IVA) o 'neto' (sin IVA); por defecto el de iva_config.json"
     ),
 ) -> str:
-    """Modo de IVA pedido (Fase 3); cualquier otro valor es un error del cliente."""
+    """Modo de IVA pedido; cualquier otro valor es un error del cliente."""
     mode = iva_mode or iva_config.CONFIG.default_mode
     if mode not in iva_config.MODES:
         raise HTTPException(status_code=422, detail=f"iva_mode debe ser uno de: {', '.join(iva_config.MODES)}")
@@ -70,9 +70,9 @@ def _call_or_502(fn: Callable[[], T]) -> T:
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=exc.response.status_code, detail="Error consultando fleet-core-service."
-        )
-    except httpx.RequestError:
-        raise HTTPException(status_code=503, detail="fleet-core-service no está disponible.")
+        ) from exc
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=503, detail="fleet-core-service no está disponible.") from exc
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummary)

@@ -1,4 +1,4 @@
-"""Aplica infra/postgres/roles.sql a una base de datos QUE YA EXISTE (Fase 5).
+"""Aplica infra/postgres/roles.sql a una base de datos QUE YA EXISTE.
 
 Una base creada antes de esta separación (o sembrada por seed_demo.py/bench_queries.py con el
 superusuario) tiene sus esquemas y tablas en manos de POSTGRES_USER: `docker-entrypoint-initdb.d`

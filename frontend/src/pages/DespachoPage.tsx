@@ -1,3 +1,8 @@
+/**
+ * Ruta /despacho · conductor, sin sesión · RF-18.
+ * Portal móvil que se abre desde el código QR de la cabina para registrar la salida del viaje.
+ * API: fleet-core-service (/api/fleet/despacho/*) con la credencial del QR en una cabecera.
+ */
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "react-router-dom";
 import { Fuel, MapPin, Truck } from "lucide-react";

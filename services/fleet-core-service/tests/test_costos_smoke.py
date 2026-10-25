@@ -1,5 +1,5 @@
 """
-Pruebas de integración de los costos fijos y de personal (Fase 3) contra el stack real: CRUD solo admin,
+Pruebas de integración de los costos fijos y de personal contra el stack real: CRUD solo admin,
 devengo prorrateado por días verificado con cálculos hechos a mano, y validaciones. Crean registros de
 prueba y los borran al terminar; correrlas contra una base desechable (FLOTA_BASE_URL).
 """

@@ -1,1 +1,1 @@
-# RF-11, RF-12, RF-13: registro por tipo de mantenimiento, clasificación y alertas por kilometraje.
+"""Mantenimientos, política de alertas por kilometraje y su configuración (RF-11 a RF-13)."""

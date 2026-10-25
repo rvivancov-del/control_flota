@@ -2,7 +2,7 @@
 reporting-service obtiene datos, al no tener base de datos propia.
 
 Todas las llamadas de un proceso comparten un pool de conexiones (keep-alive): abrir una conexión nueva
-por llamada, como se hacía antes, multiplicaba el costo de cada consulta del tablero. Como toda consulta
+por llamada multiplicaría el costo de cada consulta del tablero. Como toda consulta
 es un GET (idempotente), se reintenta con espera creciente cuando fleet-core no contesta a tiempo o
 responde 502/503/504; un error del cliente (401, 403, 404, 422) nunca se reintenta.
 """

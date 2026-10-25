@@ -1,4 +1,4 @@
-"""Pruebas del cliente de fleet-core (Fase 5) con un transporte simulado de httpx: un solo pool de
+"""Pruebas del cliente de fleet-core con un transporte simulado de httpx: un solo pool de
 conexiones para todo el proceso, el token de cada usuario en cada llamada (nunca en el pool), reintentos
 con espera creciente solo cuando tiene sentido reintentar, y errores del cliente que se propagan tal cual.
 No requieren red ni el stack."""

@@ -1,3 +1,8 @@
+/**
+ * Ruta / · todos los roles · RF-15, RF-16, RF-19, RF-20.
+ * Tablero: indicadores del período, gráficas de costos, estructura del costo, alertas y ranking AHP.
+ * API: reporting-service (/api/reports/dashboard/*), que a su vez agrega los datos de fleet-core-service.
+ */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -217,7 +222,7 @@ function DashboardPage() {
   // Umbral 'próximo' (km) de la política única de RF-13, que decide fleet-core-service.
   const [proximoKm, setProximoKm] = useState<number | null>(null);
   const [category, setCategory] = useState<ExpenseCategory | "">("");
-  // Fase 3: montos pagados (con IVA, "bruto") o sin IVA ("neto"); metodología y estado de las tarifas.
+  // Modo de IVA: montos pagados (con IVA, "bruto") o sin IVA ("neto"); metodología y estado de las tarifas.
   const [ivaMode, setIvaMode] = useState<IvaMode>("bruto");
   const [costModel, setCostModel] = useState<CostModelInfo | null>(null);
   const [granularity, setGranularity] = useState<Granularity>("month");
@@ -230,7 +235,7 @@ function DashboardPage() {
   const current = periodBounds(granularity, periodOffset);
   const previous = periodBounds(granularity, periodOffset - 1);
   // Un período en curso está a medias: se compara con los MISMOS días del período anterior, no con el anterior
-  // completo (antes, a mitad de mes la variación salía casi siempre negativa).
+  // completo; de lo contrario, a mitad de mes la variación saldría casi siempre negativa.
   const previousComparable = isCurrentPeriod
     ? firstDays(previous, daysInclusive(current.date_from, current.date_to))
     : previous;
@@ -392,7 +397,7 @@ function DashboardPage() {
 
   // KPI 3: costo por kilómetro de toda la flota (eficiencia)
   const fleetDistanceKm = summary?.vehicles.reduce((acc, v) => acc + v.distance_km, 0) ?? 0;
-  // Fase 3: costos e indicadores del modelo completo (Ct = Cv + Cf); el operador solo recibe los variables.
+  // Costos e indicadores del modelo completo (Ct = Cv + Cf); el operador solo recibe los variables.
   const fleetCosts = summary?.fleet_costs ?? null;
   const fixedIncluded = Boolean(fleetCosts?.fixed_included);
   const numOrNull = (v: string | null | undefined) => (v == null ? null : Number(v));

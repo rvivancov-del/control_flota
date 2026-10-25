@@ -1,1 +1,1 @@
-# Configuración, conexión a base de datos y utilidades de seguridad (JWT, hashing).
+"""Configuración, conexión a la base de datos, seguridad (hash y JWT) y dependencias comunes."""

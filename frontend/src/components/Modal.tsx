@@ -1,3 +1,6 @@
+/**
+ * Diálogo modal reutilizable de los formularios de alta y edición.
+ */
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import styles from "./Modal.module.css";

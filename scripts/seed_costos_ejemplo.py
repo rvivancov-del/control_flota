@@ -1,4 +1,4 @@
-"""Carga costos fijos y de personal ILUSTRATIVOS para ver el modelo de costos completo (Fase 3).
+"""Carga costos fijos y de personal ILUSTRATIVOS para ver el modelo de costos completo.
 
 Los valores NO son reales. Salen de una regla determinista y declarada (abajo), y todas las filas llevan
 notas que empiezan por "EJEMPLO"; la pantalla Costos muestra un aviso mientras existan. El administrador

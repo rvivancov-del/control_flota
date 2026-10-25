@@ -1,4 +1,4 @@
-"""Pruebas unitarias del modelo de costos (Fase 3). Cada indicador se verifica contra un cálculo hecho
+"""Pruebas unitarias del modelo de costos. Cada indicador se verifica contra un cálculo hecho
 a mano con un caso de números redondos; el caso vive en la docstring de EJEMPLO para poder repetirlo
 en papel. No requieren el stack."""
 import copy
@@ -73,7 +73,7 @@ def test_estructura_del_costo_en_ocho_categorias():
 
 
 def test_el_combustible_pesa_sobre_el_total_real_y_no_sobre_cuatro_categorias():
-    """Sesgo M4: antes el % de combustible se medía sobre combustible+peajes+alimentación+mantenimiento (60 %)."""
+    """El % de combustible se mide sobre el costo total, no sobre la suma de los cuatro rubros variables (60 %)."""
     ind = cm.compute_indicators(ITEMS, KM, REVENUE, KM)
     combustible = next(c for c in ind.composition if c.key == "combustible")
     assert combustible.share_pct == D(30)

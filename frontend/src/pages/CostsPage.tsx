@@ -1,3 +1,8 @@
+/**
+ * Ruta /costos · solo admin · modelo de costos (Ct = Cv + Cf).
+ * Costos fijos por vehículo y costos de personal por conductor.
+ * API: fleet-core-service (/api/fleet/fixed-costs, /api/fleet/personnel-costs).
+ */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import AppShell from "../components/AppShell";
@@ -59,7 +64,7 @@ const isActiveToday = (from: string, to: string | null) => from <= today() && (t
 const validity = (from: string, to: string | null) => (to ? `${from} → ${to}` : `${from} → vigente`);
 const isExample = (notes: string | null) => Boolean(notes && notes.toUpperCase().startsWith("EJEMPLO"));
 
-/** Fase 3 (solo admin): costos fijos por vehículo (depreciación, capital, seguro, impuestos, otros) y costos de
+/** Pantalla Costos (solo admin): costos fijos por vehículo (depreciación, capital, seguro, impuestos, otros) y costos de
  * personal por conductor (sueldo y beneficios). Sin ellos no se puede calcular el costo total Ct = Cv + Cf
  * (Poliak et al., 2025) ni el costo por kilómetro y el margen de la literatura (Zysińska & Menes, 2026). */
 function CostsPage() {

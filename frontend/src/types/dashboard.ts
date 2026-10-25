@@ -6,7 +6,7 @@ export type ExpenseBreakdown = {
   mantenimiento: string;
 };
 
-/** Fase 3: 'bruto' = montos pagados (con IVA); 'neto' = sin IVA. */
+/** Modo de IVA: 'bruto' = montos pagados (con IVA); 'neto' = sin IVA. */
 export type IvaMode = "bruto" | "neto";
 
 /** Una de las ocho categorías del costo por kilómetro de Zysińska & Menes (2026). */

@@ -1,6 +1,6 @@
 """Exportación del resumen de costos a Excel y PDF (RF-17).
 
-Solo la piden administradores, así que pueden incluir los costos fijos y de personal (Fase 3): cuando el
+Solo la piden administradores, así que pueden incluir los costos fijos y de personal: cuando el
 resumen los trae, se agregan Cf, Ct, ingreso, utilidad y margen, y la estructura del costo en las ocho
 categorías de Zysińska & Menes (2026). El modo de IVA y la fórmula de cada indicador viajan en el archivo.
 """
@@ -88,7 +88,7 @@ def build_costs_workbook(summary: DashboardSummary) -> bytes:
         st.append(["Categoría (Zysińska & Menes, 2026)"] + [v.plate for v in summary.vehicles] + ["Flota", "% de la flota", "Costo/km flota"])
         for cell in st[1]:
             cell.font = Font(bold=True)
-        for index, (key, label) in enumerate(cost_model.CATEGORIES):
+        for index, (_key, label) in enumerate(cost_model.CATEGORIES):
             line = fleet.composition[index] if fleet else None
             st.append(
                 [label]

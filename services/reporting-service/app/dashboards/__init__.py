@@ -1,1 +1,1 @@
-# RF-15, RF-16, RF-17: indicadores de costo por vehículo, gráficos y exportes.
+"""Tablero, reportes, exportaciones, modelo de costos y AHP (RF-15 a RF-20)."""

@@ -1,3 +1,7 @@
+/**
+ * Ruta /usuarios · solo admin · RF-01, RF-03.
+ * Cuentas de usuario, roles y desbloqueo. API: auth-service (/api/auth/users, /api/auth/roles).
+ */
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import AppShell from "../components/AppShell";

@@ -39,7 +39,7 @@ def load_ttl_days() -> int:
     try:
         days = int(raw)
     except ValueError:
-        raise ValueError(f"QR_TOKEN_TTL_DAYS debe ser un entero de días, se recibió {raw!r}")
+        raise ValueError(f"QR_TOKEN_TTL_DAYS debe ser un entero de días, se recibió {raw!r}") from None
     if not 1 <= days <= 3650:
         raise ValueError(f"QR_TOKEN_TTL_DAYS={days} fuera de [1, 3650]")
     return days

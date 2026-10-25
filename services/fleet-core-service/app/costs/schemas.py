@@ -1,4 +1,4 @@
-"""Esquemas de los costos fijos por vehículo y de personal por conductor (Fase 3)."""
+"""Esquemas de los costos fijos por vehículo y de personal por conductor (modelo de costos)."""
 import uuid
 from datetime import date, datetime
 from decimal import Decimal

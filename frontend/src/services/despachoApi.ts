@@ -1,3 +1,7 @@
+/**
+ * Cliente del portal de despacho (RF-18): llamadas a /api/fleet/despacho/* sin sesión,
+ * autenticadas con la credencial personal del código QR.
+ */
 import { apiClient } from "./apiClient";
 import type { DespachoInfo, DespachoInput, DespachoResult } from "../types/despacho";
 

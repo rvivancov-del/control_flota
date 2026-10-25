@@ -1,3 +1,7 @@
+/**
+ * Ruta /viajes · todos los roles · RF-06, RF-14.
+ * Registro y consulta filtrada de viajes. API: fleet-core-service (/api/fleet/trips).
+ */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";

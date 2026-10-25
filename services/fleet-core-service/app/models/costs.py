@@ -1,4 +1,4 @@
-"""Modelos ORM de los costos fijos por vehículo y los costos de personal por conductor (Fase 3).
+"""Modelos ORM de los costos fijos por vehículo y los costos de personal por conductor (modelo de costos).
 
 El prototipo original solo registraba costos variables por viaje (combustible, peajes,
 alimentación) y de mantenimiento. La literatura separa el costo total en variable y fijo

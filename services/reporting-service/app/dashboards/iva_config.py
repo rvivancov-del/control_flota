@@ -1,4 +1,4 @@
-"""Tarifas de IVA por rubro de costo (Fase 3) y modo de presentación 'bruto' / 'neto'.
+"""Tarifas de IVA por rubro de costo y modo de presentación 'bruto' / 'neto'.
 
 Los montos se registran tal como se pagaron (con IVA): eso es el modo 'bruto', el predeterminado,
 correcto cuando la empresa no recupera el IVA de sus compras (p. ej. el transporte de carga

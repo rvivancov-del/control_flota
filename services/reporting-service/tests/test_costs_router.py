@@ -1,4 +1,4 @@
-"""Pruebas del router de costos (Fase 3): quién ve los costos fijos y de personal, validación de
+"""Pruebas del router de costos: quién ve los costos fijos y de personal, validación de
 iva_mode y el endpoint de metodología. Usa el escenario de test_costs_service.py con un cliente de
 fleet-core simulado; no requiere el stack."""
 import uuid

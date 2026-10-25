@@ -1,4 +1,4 @@
-"""Modelo de costos e indicadores (Fase 3): funciones puras, sin HTTP ni base de datos.
+"""Modelo de costos e indicadores: funciones puras, sin HTTP ni base de datos.
 
 Cada indicador sale de una fórmula publicada; la lista INDICATORS al final es la fuente única de
 la tabla "Indicador → fórmula → fuente → código" que usan la documentación y la interfaz.

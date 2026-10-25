@@ -1,8 +1,8 @@
-"""Pruebas del modelo de costos integrado en el tablero (Fase 3) con un cliente de fleet-core simulado.
+"""Pruebas del modelo de costos integrado en el tablero con un cliente de fleet-core simulado.
 
 Los números del escenario están calculados a mano (ver el comentario ESCENARIO): las pruebas comprueban
-que build_dashboard_summary y compañía reproducen esos cálculos, que el filtro de categoría ya no altera
-el margen (sesgo M4), que el operador no recibe costos fijos ni sueldos, y que el IVA neto convierte solo
+que build_dashboard_summary y compañía reproducen esos cálculos, que el filtro de categoría no altera
+el margen, que el operador no recibe costos fijos ni sueldos, y que el IVA neto convierte solo
 los rubros con tarifa. No requieren el stack ni la base de datos."""
 from datetime import date
 from decimal import Decimal
@@ -139,7 +139,7 @@ def test_los_campos_heredados_del_tablero_siguen_siendo_el_gasto_operativo():
     assert r.fleet_total_margin == D("750.00")  # margen de contribución de la flota: 1 250 − 500
 
 
-# ------------------------------------------------------------------ sesgo M4: el filtro de categoría no cambia el margen
+# ------------------------------------------------------------------ el filtro de categoría no cambia el margen
 def test_el_filtro_de_categoria_acota_el_total_pero_no_el_margen_ni_los_indicadores():
     sin, con = _resumen(include_fixed=True), _resumen(include_fixed=True, category="combustible")
     assert sin.fleet_total_cost == D("500.00") and con.fleet_total_cost == D("300.00")  # el total sí se filtra

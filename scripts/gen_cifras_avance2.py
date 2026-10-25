@@ -93,7 +93,7 @@ def ahp_cifras() -> dict:
     filas = ahp_analysis.sensitivity(ahp_analysis.standard_item_set())
     return {"estado": cfg.estado, "version": cfg.version, "procedencia": cfg.procedencia,
             "criterios": list(ahp.CRITERIA), "matriz": m, "sumas_columna": sumas, "normalizada": norm,
-            "pesos": dict(zip(ahp.CRITERIA, w)), "aw": aw, "cocientes": coc, "lambda_max": lam, "ic": ic,
+            "pesos": dict(zip(ahp.CRITERIA, w, strict=True)), "aw": aw, "cocientes": coc, "lambda_max": lam, "ic": ic,
             "ia": ahp.RANDOM_INDEX[n], "cr": pesos.consistency_ratio, "umbral": ahp.CONSISTENCY_LIMIT,
             "criticidad": cfg.criticidad_seguridad, "costo_direccion": cfg.costo.direccion,
             "urgencia": {"sin_urgencia_multiplo": cfg.urgencia.sin_urgencia_multiplo,

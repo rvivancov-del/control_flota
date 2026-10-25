@@ -1,6 +1,6 @@
-"""Regresión del N+1 (Fase 5): las consultas del tablero que leen mantenimientos deben pedirlos a
-fleet-core en UNA sola llamada, sin importar cuántos vehículos tenga la flota. Antes cada una hacía
-una llamada HTTP por vehículo (12 con la flota piloto) y bajo carga eran las más lentas.
+"""Regresión del N+1: las consultas del tablero que leen mantenimientos deben pedirlos a
+fleet-core en UNA sola llamada, sin importar cuántos vehículos tenga la flota. Una llamada HTTP por
+vehículo (12 con la flota piloto) haría que estas consultas fueran las más lentas bajo carga.
 
 Se usa un cliente simulado con 12 vehículos y dos mantenimientos por vehículo, con números calculados
 a mano, para comprobar a la vez que el resultado es el esperado y que la cantidad de llamadas es 1."""

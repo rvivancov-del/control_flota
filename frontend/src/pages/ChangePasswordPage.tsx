@@ -1,3 +1,7 @@
+/**
+ * Ruta /cambiar-clave · todos los roles · RNF-02.
+ * Cambio de contraseña obligatorio en el primer acceso. API: auth-service (POST /api/auth/change-password).
+ */
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";

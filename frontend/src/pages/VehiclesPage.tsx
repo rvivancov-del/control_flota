@@ -1,3 +1,7 @@
+/**
+ * Ruta /vehiculos · admin edita, operador consulta · RF-04.
+ * Flota de vehículos. API: fleet-core-service (/api/fleet/vehicles).
+ */
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import AppShell from "../components/AppShell";

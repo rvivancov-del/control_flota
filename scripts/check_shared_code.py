@@ -1,5 +1,5 @@
 """Comprueba que los archivos que se copian a propósito entre los tres microservicios sigan siendo
-idénticos (Fase 5).
+idénticos.
 
 Los tres servicios son procesos independientes, cada uno con su propia imagen de Docker: no comparten
 un paquete de Python en tiempo de ejecución (extraerlo a una librería común exigiría publicarla o

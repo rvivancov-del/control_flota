@@ -127,6 +127,15 @@ Solo si cambia a propósito la base piloto (y por tanto las cifras del documento
 de reexportar, actualice el documento y la matriz de trazabilidad
 (`07_MATRICES_DE_ANALISIS/matriz_trazabilidad.xlsx`, filas N-01 y N-07).
 
+## Evidencias para el documento y el README
+
+| Script | Qué hace |
+|---|---|
+| `gen_er_diagram.py` | Genera el modelo entidad-relación (Mermaid) y el diccionario de datos desde el esquema en ejecución; con `--check` falla si el diagrama quedó desactualizado. |
+| `gen_informe_pruebas.py` | Resume los JUnit XML de las tres suites (unitarias e integración) en el informe de pruebas que cita el documento. |
+| `gen_cifras_avance2.py` | Reúne en un JSON las cifras que citó el documento del Avance 2 (pruebas, AHP, cobertura, carga). Se conserva como registro de esa entrega. |
+| `capturas_readme.py` | Toma las capturas de `docs/capturas/` y graba el recorrido de `docs/video/` con Playwright, con la pila local corriendo. |
+
 ## Pila de verificación aislada
 
 Las pruebas de integración (`services/*/tests/test_*_smoke.py`) **escriben datos**: crean y

@@ -1,3 +1,4 @@
+"""Modelos ORM del esquema fleet."""
 from app.models.vehicle import Vehicle
 from app.models.driver import Driver
 from app.models.trip import Trip

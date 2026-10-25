@@ -27,7 +27,7 @@ class CostCategoryLine(BaseModel):
 
 
 class CostStructure(BaseModel):
-    """Costos e indicadores de un vehículo (o de la flota) en el período — Fase 3.
+    """Costos e indicadores de un vehículo (o de la flota) en el período (modelo de costos).
 
     Ct = Cv + Cf (Poliak et al., 2025); costo, ingreso y utilidad por km y margen (Zysińska & Menes,
     2026); LP y ROP (Kutac et al., 2022). Los campos que dependen de los costos fijos y de personal son
@@ -84,7 +84,7 @@ class VehicleSummary(BaseModel):
     active_days: Optional[int] = None
     period_days: Optional[int] = None
     utilization_pct: Optional[Decimal] = None
-    # Fase 3: costos e indicadores completos del vehículo (variables y, para el admin, fijos).
+    # Costos e indicadores completos del vehículo (variables y, para el admin, fijos).
     costs: Optional[CostStructure] = None
 
 

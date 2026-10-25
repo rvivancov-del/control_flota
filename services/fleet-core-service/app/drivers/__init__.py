@@ -1,1 +1,1 @@
-# RF-05: alta, edición y baja de conductores (licencia, tipo de licencia).
+"""Conductores y su credencial de despacho (RF-05, RF-18)."""

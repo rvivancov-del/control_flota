@@ -1,3 +1,8 @@
+/**
+ * Ruta /reportes · admin exporta, operador consulta · RF-17.
+ * Reporte de mantenimientos y de costos del período, con exportación a Excel y PDF.
+ * API: reporting-service (/api/reports/*).
+ */
 import { useEffect, useMemo, useState } from "react";
 import {
   Area,

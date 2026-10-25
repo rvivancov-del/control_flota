@@ -66,7 +66,7 @@ MATRIZ = {
     ("GET", "/analytics/trips"): AMBOS,
     ("GET", "/analytics/routes"): AMBOS,
     ("GET", "/analytics/maintenance"): AMBOS,
-    # Costos fijos y de personal (Fase 3): información financiera, solo admin
+    # Costos fijos y de personal: información financiera, solo admin
     ("GET", "/analytics/fixed-costs"): ADMIN,
     ("GET", "/analytics/personnel-costs"): ADMIN,
     ("GET", "/fixed-costs"): ADMIN,

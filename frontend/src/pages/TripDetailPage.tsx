@@ -1,3 +1,8 @@
+/**
+ * Ruta /viajes/:id · todos los roles · RF-07 a RF-10.
+ * Ciclo de vida del viaje (iniciar, cerrar, anular) y registro de gastos.
+ * API: fleet-core-service (/api/fleet/trips/{id}, /api/fleet/trips/{id}/expenses).
+ */
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Plus } from "lucide-react";

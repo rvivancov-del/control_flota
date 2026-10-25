@@ -87,5 +87,5 @@ Cubren: pesos y CR contra un cálculo independiente, regresión de la curva de
 urgencia, validación estricta de `ahp_config.json`, sensibilidad del ranking
 (primer lugar y top-3 estables hasta +-30 %, tau >= 0.90) y el ranking de RF-19.
 
-La cobertura de pruebas de este servicio no tiene una cifra vigente: se mide
-con `coverage.py` en la Fase 5 del plan de coherencia.
+La cobertura de las pruebas unitarias se mide con `coverage.py` (`pytest-cov`) y la
+resume `scripts/gen_coverage_report.py` para los tres servicios.

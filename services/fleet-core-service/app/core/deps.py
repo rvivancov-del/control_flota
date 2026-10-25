@@ -45,7 +45,7 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado.",
-        )
+        ) from None
     # RNF-02: auth-service marca con `mcp` el token de quien debe cambiar su contraseña; hasta
     # que la cambie (y reciba un token nuevo) no puede usar este servicio.
     if payload.get("mcp"):

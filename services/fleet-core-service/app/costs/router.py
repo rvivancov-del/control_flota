@@ -1,4 +1,4 @@
-"""Costos fijos por vehículo y costos de personal por conductor (Fase 3).
+"""Costos fijos por vehículo y costos de personal por conductor (modelo de costos).
 
 Es información financiera (y, en el caso del personal, sueldos de personas): solo el rol
 admin la consulta y la administra (RF-03). Los devengos por período que consume el

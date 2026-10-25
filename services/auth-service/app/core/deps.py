@@ -29,7 +29,7 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o expirado.",
-        )
+        ) from None
 
     user = db.get(User, user_id)
     if user is None or not user.is_active:

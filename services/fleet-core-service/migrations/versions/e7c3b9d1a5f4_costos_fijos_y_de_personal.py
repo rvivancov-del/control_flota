@@ -1,4 +1,4 @@
-"""costos fijos por vehiculo y costos de personal por conductor (Fase 3)
+"""costos fijos por vehiculo y costos de personal por conductor
 
 Tablas nuevas para calcular el costo total Ct = Cv + Cf (Poliak et al., 2025) y el costo por
 kilometro en las categorias de Zysinska & Menes (2026): depreciacion, capital, seguros,

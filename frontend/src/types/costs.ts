@@ -1,4 +1,4 @@
-// Costos fijos por vehículo y costos de personal por conductor (Fase 3), reflejo de fleet-core-service.
+// Costos fijos por vehículo y costos de personal por conductor (modelo de costos), reflejo de fleet-core-service.
 export type FixedCostCategory = "depreciacion" | "capital" | "seguro" | "impuestos" | "otros";
 export type CostPeriod = "mensual" | "anual";
 export type PersonnelConcept = "sueldo" | "beneficios_sociales" | "otros";

@@ -1,3 +1,6 @@
+/**
+ * Ícono decorativo de camión para la portada de acceso y los estados vacíos.
+ */
 import { Truck } from "lucide-react";
 
 /** Ícono decorativo (portada de login, estados vacíos) -- no es la marca, ver Logo.tsx. */
