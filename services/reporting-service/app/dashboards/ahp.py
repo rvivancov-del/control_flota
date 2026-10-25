@@ -217,6 +217,12 @@ def cost_score(maintenance_type: str, avg_cost_by_type: dict[str, float], cfg: C
     return relative if cfg.direccion == DIR_MAYOR else 1.0 - relative
 
 
+def km_tiebreak(km_remaining: int | None) -> float:
+    """Clave de desempate entre mantenimientos con el mismo puntaje: primero el que tiene menos km por
+    delante (el más vencido); los que no tienen kilometraje programado van al final."""
+    return float("inf") if km_remaining is None else float(km_remaining)
+
+
 def priority_score(seguridad: float, urgencia: float, costo: float, weights: AhpWeights | None = None) -> float:
     """Suma ponderada de los tres subpuntajes (0-1): más alto = atender primero."""
     weights = weights or AHP_WEIGHTS

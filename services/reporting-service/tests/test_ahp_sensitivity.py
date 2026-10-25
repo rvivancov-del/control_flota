@@ -54,8 +54,21 @@ def test_el_ranking_es_determinista():
     assert an.rank_items(ITEMS, ahp.AHP_WEIGHTS) == an.rank_items(list(reversed(ITEMS)), ahp.AHP_WEIGHTS)
 
 
-def test_frenos_vencido_encabeza_el_ranking_base():
-    assert an.rank_items(ITEMS, ahp.AHP_WEIGHTS)[0] == "frenos-vencido"
+def test_un_vencido_de_maxima_criticidad_encabeza_el_ranking_base():
+    """Con la criticidad de los expertos (varios tipos igual de críticos) el primer lugar no es un tipo fijo:
+    es un mantenimiento vencido de criticidad máxima, y los empates se resuelven de forma determinista."""
+    primero = an.rank_items(ITEMS, ahp.AHP_WEIGHTS)[0]
+    item = next(i for i in ITEMS if i["id"] == primero)
+    assert primero.endswith("-vencido")
+    assert item["seguridad"] == max(i["seguridad"] for i in ITEMS)
+
+
+def test_a_igual_puntaje_va_primero_el_mas_vencido_en_km():
+    base = {"seguridad": 1.0, "urgencia": 1.0, "costo": 0.5}
+    items = [{**base, "id": "a-poco-vencido", "km_remaining": -50},
+             {**base, "id": "b-sin-km", "km_remaining": None},
+             {**base, "id": "c-muy-vencido", "km_remaining": -900}]
+    assert an.rank_items(items, ahp.AHP_WEIGHTS) == ["c-muy-vencido", "a-poco-vencido", "b-sin-km"]
 
 
 @pytest.mark.parametrize("criterio", ahp.CRITERIA)

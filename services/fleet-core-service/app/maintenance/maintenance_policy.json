@@ -1,7 +1,7 @@
 {
-  "version": "0.1.0-provisional",
-  "estado": "provisional_desarrollador",
-  "procedencia": "Umbral escrito por el desarrollador durante el prototipo; NO proviene de expertos. Se reemplaza con la mediana de la pregunta 6.1 del cuestionario de expertos (07_MATRICES_DE_ANALISIS/ahp_juicios_expertos.xlsx) y este archivo pasa a estado 'expertos_n=<n>'.",
-  "proximo_km": 1500,
+  "version": "1.0.0-expertos-2026-10-24",
+  "estado": "expertos_n=3",
+  "procedencia": "Mediana de la pregunta 6.1 del cuestionario de 3 expertos externos (07_MATRICES_DE_ANALISIS/ahp_juicios_expertos.xlsx).",
+  "proximo_km": 1000,
   "proximo_km_por_tipo": {}
 }

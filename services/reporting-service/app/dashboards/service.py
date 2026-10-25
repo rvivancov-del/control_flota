@@ -734,7 +734,9 @@ def build_maintenance_priority(
                 )
             )
 
-    items.sort(key=lambda item: item.priority_score, reverse=True)
+    # A igual puntaje, primero el más vencido en km: los expertos calificaron igual de críticos los tipos de
+    # mantenimiento y los propietarios deciden «por seguridad primero y luego por el kilómetro» (entrevistas, 2026).
+    items.sort(key=lambda item: (-item.priority_score, ahp.km_tiebreak(item.km_remaining)))
     weights = ahp.AHP_WEIGHTS
     return MaintenancePriorityResponse(
         items=items,

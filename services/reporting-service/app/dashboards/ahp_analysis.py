@@ -44,10 +44,15 @@ def perturb_weights(weights: ahp.AhpWeights, criterion: str, delta: float) -> ah
 
 def rank_items(items: list[dict], weights: ahp.AhpWeights) -> list[str]:
     """Ids ordenados de mayor a menor prioridad. Cada item trae id, seguridad,
-    urgencia y costo (subpuntajes 0-1). Desempata por id para ser determinista."""
-    scored = [(ahp.priority_score(i["seguridad"], i["urgencia"], i["costo"], weights), i["id"]) for i in items]
-    scored.sort(key=lambda pair: (-pair[0], pair[1]))
-    return [item_id for _, item_id in scored]
+    urgencia y costo (subpuntajes 0-1) y, si lo tiene, km_remaining. A igual
+    puntaje desempata como el tablero (ahp.km_tiebreak: primero el más vencido)
+    y después por id, para ser determinista."""
+    scored = [
+        (ahp.priority_score(i["seguridad"], i["urgencia"], i["costo"], weights), ahp.km_tiebreak(i.get("km_remaining")), i["id"])
+        for i in items
+    ]
+    scored.sort(key=lambda t: (-t[0], t[1], t[2]))
+    return [item_id for _, _, item_id in scored]
 
 
 @dataclass(frozen=True)
@@ -98,6 +103,7 @@ def standard_item_set() -> list[dict]:
                     "seguridad": ahp.safety_score(mtype),
                     "urgencia": ahp.urgency_score(km, PROXIMO_KM_REFERENCIA),
                     "costo": ahp.cost_score(mtype, {}),
+                    "km_remaining": km,
                 }
             )
     return items
