@@ -328,7 +328,7 @@ Los microservicios ganan por el **aislamiento de los datos personales** y por el
 
 - **Juicios de expertos:** cuestionario aplicado a 3 expertos externos del transporte de carga. Los pesos son la media geométrica de los 2 expertos con juicios consistentes; el tercero (CR = 0,54) quedó pendiente de revisar sus juicios, según el protocolo.
 - **Consistencia:** razón de consistencia CR = **0,0115**, menor que 0,10, verificada también con la librería **ahpy**. **El servicio no arranca** si la matriz es inconsistente (CR ≥ 0,10).
-- **Criticidad:** los expertos calificaron igual de críticos frenos, llantas, bocines, aceite y filtros; a igual puntaje se atiende primero el mantenimiento más vencido en kilómetros.
+- **Criticidad:** con la mediana de las calificaciones de los expertos, frenos, llantas, bocines, aceite y filtros quedan igual de críticos; a igual puntaje se atiende primero el mantenimiento más vencido en kilómetros.
 - **Estabilidad:** el primer lugar y el top-3 se mantienen con cambios de ±30 % en los pesos (τ de Kendall mínima de 0,935).
 - **Configuración:** `services/reporting-service/app/dashboards/ahp_config.json`, con la procedencia de cada valor.
 

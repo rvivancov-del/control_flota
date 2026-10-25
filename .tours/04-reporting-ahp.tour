@@ -50,7 +50,7 @@
       "file": "services/reporting-service/app/dashboards/service.py",
       "pattern": "km_tiebreak\\(item\\.km_remaining\\)",
       "title": "Ranking final",
-      "description": "Ordena por puntaje; a igual puntaje, primero el más vencido en km: la regla «seguridad primero y luego el kilómetro» de las entrevistas."
+      "description": "Ordena por puntaje; a igual puntaje, primero el más vencido en km: la regla «seguridad primero y luego el kilómetro» que expresó una de las propietarias entrevistadas (E-P2)."
     }
   ],
   "nextTour": "5 · Frontend: React + TypeScript"

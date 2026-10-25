@@ -1,6 +1,6 @@
 """El tablero de prioridad (RF-19/RF-20) desempata por kilometraje: a igual puntaje AHP aparece primero el
-mantenimiento más vencido. Los expertos calificaron igual de críticos los tipos de mantenimiento y los
-propietarios entrevistados deciden «por seguridad primero y luego por el kilómetro»; sin este desempate el
+mantenimiento más vencido. Con la mediana de los expertos varios tipos de mantenimiento quedan igual de críticos
+y la regla aplicada es «por seguridad primero y luego por el kilómetro» (entrevista E-P2); sin este desempate el
 orden de los empatados dependía del orden en que fleet-core devolvía los registros."""
 import uuid
 
