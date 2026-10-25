@@ -1,0 +1,25 @@
+{
+  "folders": [{ "name": "FlotaControl", "path": "." }],
+  "settings": {
+    "editor.fontSize": 16,
+    "terminal.integrated.fontSize": 15,
+    "editor.minimap.enabled": false,
+    "editor.renderWhitespace": "none",
+    "breadcrumbs.enabled": true,
+    "workbench.startupEditor": "readme",
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/.pytest_cache": true,
+      "**/.ruff_cache": true,
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/*.tsbuildinfo": true,
+      "**/.coverage": true
+    },
+    "search.exclude": { "**/package-lock.json": true, "docs/video": true },
+    "codetour.promptForWorkspaceTours": true
+  },
+  "extensions": {
+    "recommendations": ["vsls-contrib.codetour", "ms-python.python", "ms-azuretools.vscode-docker"]
+  }
+}

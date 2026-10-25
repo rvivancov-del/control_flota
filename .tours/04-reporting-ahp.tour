@@ -1,0 +1,57 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "4 · Backend: reporting-service, modelo de costos y AHP",
+  "description": "Tablero, indicadores y priorización del mantenimiento.",
+  "isPrimary": false,
+  "steps": [
+    {
+      "file": "services/reporting-service/app/core/fleet_client.py",
+      "pattern": "FLEET_SERVICE_BASE_URL",
+      "title": "Sin base de datos propia",
+      "description": "reporting-service obtiene los datos de fleet-core **por HTTP**, reenviando el token del usuario: así respeta los mismos permisos."
+    },
+    {
+      "file": "services/reporting-service/app/dashboards/router.py",
+      "pattern": "dashboard/summary",
+      "title": "Endpoint del tablero",
+      "description": "`GET /dashboard/summary` (por el gateway: `/api/reports/dashboard/summary`): costos por vehículo y de la flota."
+    },
+    {
+      "file": "services/reporting-service/app/dashboards/cost_model.py",
+      "pattern": "def compute_indicators",
+      "title": "Modelo de costos",
+      "description": "Ct = Cv + Cf, costo e ingreso por km, utilidad y margen (Poliak et al., 2025; Zysińska y Menes, 2026). Validado con un mes real: diferencia de −0,48 % en el costo total."
+    },
+    {
+      "file": "services/reporting-service/app/dashboards/ahp_config.json",
+      "pattern": "comparaciones_saaty",
+      "title": "Juicios de los expertos",
+      "description": "Comparaciones de Saaty por media geométrica de los expertos consistentes (E2 y E3). La procedencia queda escrita en el propio archivo."
+    },
+    {
+      "file": "services/reporting-service/app/dashboards/ahp.py",
+      "pattern": "def _weights_and_cr",
+      "title": "Pesos y razón de consistencia",
+      "description": "Normalización por columnas, λmax, CI y **CR = CI / RI**. Verificado de forma independiente con la librería **ahpy**."
+    },
+    {
+      "file": "services/reporting-service/app/dashboards/ahp.py",
+      "pattern": "_require\\(cr < CONSISTENCY_LIMIT",
+      "title": "El servicio no arranca si CR ≥ 0,10",
+      "description": "Si alguien carga una matriz inconsistente, el servicio se niega a arrancar."
+    },
+    {
+      "file": "services/reporting-service/app/dashboards/ahp.py",
+      "pattern": "def priority_score",
+      "title": "Puntaje de prioridad",
+      "description": "Suma ponderada de seguridad, urgencia y costo (subpuntajes de 0 a 1)."
+    },
+    {
+      "file": "services/reporting-service/app/dashboards/service.py",
+      "pattern": "km_tiebreak\\(item\\.km_remaining\\)",
+      "title": "Ranking final",
+      "description": "Ordena por puntaje; a igual puntaje, primero el más vencido en km: la regla «seguridad primero y luego el kilómetro» de las entrevistas."
+    }
+  ],
+  "nextTour": "5 · Frontend: React + TypeScript"
+}

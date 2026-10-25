@@ -55,8 +55,8 @@ comparación pareada y de su razón de consistencia (CR < 0.10). Los juicios
 NO están escritos en el código: viven en `app/dashboards/ahp_config.json`
 (o en la ruta de `AHP_CONFIG_PATH`), que declara su `estado` y su
 `procedencia`; la respuesta del endpoint los repite en `config`. Hoy el estado
-es `provisional_desarrollador` (valores del autor, sin panel de expertos); se
-reemplaza con la agregación de `07_MATRICES_DE_ANALISIS/ahp_juicios_expertos.xlsx`.
+es `expertos_n=2`: media geométrica de los expertos con CR < 0,10. A igual
+puntaje, el ranking ordena primero el mantenimiento más vencido en km.
 Un archivo inválido o con CR >= 0.10 detiene el arranque.
 
 `dashboard/vehicle-attention` (RF-19) usa el mismo motor con dos criterios:

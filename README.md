@@ -6,7 +6,7 @@
 
 <p>
 <img alt="Versión" src="https://img.shields.io/badge/versión-v1.1--avance2-1B3A5C?style=for-the-badge">
-<img alt="Pruebas" src="https://img.shields.io/badge/pruebas-907%2F908%20aprobadas-2E8B57?style=for-the-badge">
+<img alt="Pruebas" src="https://img.shields.io/badge/pruebas-909%2F910%20aprobadas-2E8B57?style=for-the-badge">
 <img alt="Cobertura" src="https://img.shields.io/badge/cobertura-80%25-2E8B57?style=for-the-badge">
 <img alt="p95" src="https://img.shields.io/badge/tablero%20p95-1%2C19%20s-E87D1E?style=for-the-badge">
 </p>
@@ -322,13 +322,15 @@ Los microservicios ganan por el **aislamiento de los datos personales** y por el
 
 | Criterio | Peso |
 |---|:---:|
-| 🛡️ Seguridad (criticidad del tipo de mantenimiento) | **0,633** |
-| ⏱️ Urgencia por kilometraje | **0,260** |
-| 💲 Costo estimado | **0,106** |
+| 🛡️ Seguridad (criticidad del tipo de mantenimiento) | **0,528** |
+| ⏱️ Urgencia por kilometraje | **0,420** |
+| 💲 Costo estimado | **0,053** |
 
-- **Consistencia:** razón de consistencia CR = **0,0334**, menor que 0,10. **El servicio no arranca** si la matriz es inconsistente (CR ≥ 0,10).
-- **Estabilidad:** el ranking se mantiene con cambios de ±30 % en los pesos (τ de Kendall mínima de 0,935).
-- **Configuración:** los pesos están en `services/reporting-service/app/dashboards/ahp_config.json`. La matriz actual es provisional y se reemplazará con los juicios de 3 a 5 expertos.
+- **Juicios de expertos:** cuestionario aplicado a 3 expertos externos del transporte de carga. Los pesos son la media geométrica de los 2 expertos con juicios consistentes; el tercero (CR = 0,54) quedó pendiente de revisar sus juicios, según el protocolo.
+- **Consistencia:** razón de consistencia CR = **0,0115**, menor que 0,10, verificada también con la librería **ahpy**. **El servicio no arranca** si la matriz es inconsistente (CR ≥ 0,10).
+- **Criticidad:** los expertos calificaron igual de críticos frenos, llantas, bocines, aceite y filtros; a igual puntaje se atiende primero el mantenimiento más vencido en kilómetros.
+- **Estabilidad:** el primer lugar y el top-3 se mantienen con cambios de ±30 % en los pesos (τ de Kendall mínima de 0,935).
+- **Configuración:** `services/reporting-service/app/dashboards/ahp_config.json`, con la procedencia de cada valor.
 
 ## ✅ Pruebas y calidad
 
@@ -336,8 +338,8 @@ Los microservicios ganan por el **aislamiento de los datos personales** y por el
 |---|:---:|:---:|:---:|
 | auth-service | 89 | 89 | 0 |
 | fleet-core-service | 546 | 545 | 1* |
-| reporting-service | 273 | 273 | 0 |
-| **Total** | **908** | **907** | **1** |
+| reporting-service | 275 | 275 | 0 |
+| **Total** | **910** | **909** | **1** |
 
 <sub>* La prueba del límite de intentos del QR bloquea el gateway durante un minuto; solo corre con `RUN_RATE_LIMIT_TESTS=1`.</sub>
 
@@ -345,8 +347,9 @@ Los microservicios ganan por el **aislamiento de los datos personales** y por el
 - **Cobertura:** 80 % (de 69 a 94 % por servicio).
 - **Carga (k6):** p95 de 1,19 s con 10 usuarios a la vez.
 - **Benchmark con un millón de viajes:** las consultas por vehículo o por viaje son de 6 a 10 veces más rápidas con índices.
+- **Validación con un mes de datos reales** de la empresa caso: el costo total calculado por el sistema difiere en −0,48 % del cálculo manual, y la utilidad en +0,64 %.
 
-## 📁 Estructura del repositorio
+## 📁 Mapa del repositorio
 
 ```
 control_flota/
@@ -359,8 +362,23 @@ control_flota/
 │   └── reporting-service/      # tablero, costos, AHP y reportes
 ├── frontend/                   # React + TypeScript: panel y portal del conductor
 ├── scripts/                    # datos de prueba, informes, benchmark, carga y capturas del README
-└── docs/                       # banner, capturas, diagramas y videos
+├── docs/                       # banner, capturas, diagramas y videos
+├── .tours/                     # recorridos guiados del código (CodeTour)
+└── flotacontrol.code-workspace # espacio de trabajo de VS Code
 ```
+
+### Recorrido guiado del código
+
+Abra `flotacontrol.code-workspace` en VS Code e instale la extensión recomendada **CodeTour**. Cada recorrido abre los archivos clave en la línea exacta, en este orden:
+
+| Recorrido | Qué muestra | Dónde |
+|---|---|---|
+| 1 · Arquitectura | Contenedores, base de datos con un rol por servicio y rutas del gateway | `docker-compose.yml`, `infra/` |
+| 2 · auth-service | bcrypt, emisión del JWT, login y bloqueo por intentos | `services/auth-service/app/` |
+| 3 · fleet-core-service | Módulos del dominio, roles, cierre de viaje con alertas, despacho QR, agregaciones | `services/fleet-core-service/app/` |
+| 4 · reporting-service | Cliente HTTP hacia fleet-core, modelo de costos y AHP | `services/reporting-service/app/` |
+| 5 · Frontend | Rutas, conexión con el gateway, sesión y pantallas principales | `frontend/src/` |
+| 6 · Pruebas | Pruebas unitarias, de integración e integración continua | `services/*/tests/`, `.github/workflows/` |
 
 ## 🗺️ Alcance y trabajo futuro
 
@@ -371,10 +389,15 @@ control_flota/
   - facturación electrónica;
   - mantenimiento basado en sensores.
 - **Siguiente etapa:**
-  - validar los costos con un mes de datos reales;
-  - pesos AHP de 3 a 5 expertos;
+  - registrar la comisión del conductor como porcentaje del flete de cada viaje (práctica de la empresa caso);
+  - completar el panel AHP con la revisión del tercer experto y ampliarlo a 5 expertos;
+  - registrar el kilometraje de cada viaje para medir el costo por kilómetro de la empresa caso;
   - pruebas con usuarios (tareas cronometradas y SUS);
   - despliegue en Cloud Run.
+
+## 👩‍💻 Autora
+
+**Rosa Margarita Vivanco Vélez** · Ingeniería en Tecnologías de la Información, Universidad Estatal de Milagro (UNEMI). Tutoras: M.Sc. Mirella Azucena Peralta Correa y M.Sc. María Gabriela Espinoza Bravo. Ver `AUTHORS`.
 
 ---
 

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "2 · Backend: auth-service (usuarios, roles y JWT)",
+  "description": "Autenticación y autorización del sistema.",
+  "isPrimary": false,
+  "steps": [
+    {
+      "file": "services/auth-service/app/main.py",
+      "pattern": "app = FastAPI",
+      "title": "Aplicación FastAPI",
+      "description": "Arranque del servicio: CORS, routers de autenticación, usuarios y roles, y `/health` para Docker. Fuera de desarrollo no arranca con secretos por defecto (RNF-02)."
+    },
+    {
+      "file": "services/auth-service/app/core/security.py",
+      "pattern": "_pwd_context",
+      "title": "Contraseñas con bcrypt",
+      "description": "Las contraseñas nunca se guardan en texto plano: se guarda su hash **bcrypt**."
+    },
+    {
+      "file": "services/auth-service/app/core/security.py",
+      "pattern": "def create_access_token",
+      "title": "Emisión del JWT",
+      "description": "El token lleva el id del usuario (`sub`), su **rol** y la expiración. Los otros servicios lo validan con la misma clave, sin consultar la base de usuarios."
+    },
+    {
+      "file": "services/auth-service/app/routers/auth.py",
+      "pattern": "def login",
+      "title": "Endpoint de login",
+      "description": "`POST /login` (por el gateway: `/api/auth/login`): verifica las credenciales, aplica el bloqueo temporal por intentos fallidos y devuelve el JWT."
+    },
+    {
+      "file": "services/auth-service/app/core/lockout.py",
+      "pattern": "def ",
+      "title": "Bloqueo por intentos fallidos",
+      "description": "Después de varios intentos fallidos la cuenta se bloquea un tiempo (RNF-03), además del límite del gateway."
+    }
+  ],
+  "nextTour": "3 · Backend: fleet-core-service (dominio de la flota)"
+}

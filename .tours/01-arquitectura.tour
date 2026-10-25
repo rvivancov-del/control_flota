@@ -1,0 +1,51 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "1 · Arquitectura: contenedores y gateway",
+  "description": "Cómo se levanta el sistema y cómo entra cada petición.",
+  "isPrimary": true,
+  "steps": [
+    {
+      "file": "docker-compose.yml",
+      "pattern": "  postgres:",
+      "title": "PostgreSQL",
+      "description": "Una sola instancia de **PostgreSQL 16** con dos esquemas (`auth` y `fleet`). No se publica al equipo anfitrión: solo la ven los servicios de la red de Docker."
+    },
+    {
+      "file": "infra/postgres/roles.sql",
+      "pattern": "-- Aislamiento",
+      "title": "Un rol por servicio",
+      "description": "Cada microservicio tiene su propio rol, dueño de su esquema y sin permisos sobre el del otro. **reporting-service no usa la base**: pide los datos a fleet-core por HTTP."
+    },
+    {
+      "file": "docker-compose.yml",
+      "pattern": "  auth-service:",
+      "title": "Los tres microservicios",
+      "description": "**auth-service**, **fleet-core-service** y **reporting-service**: cada uno es una API FastAPI en su propio contenedor, con su imagen, su `.env` y su chequeo de salud."
+    },
+    {
+      "file": "docker-compose.yml",
+      "pattern": "  gateway:",
+      "title": "API Gateway",
+      "description": "**Nginx** es el único punto de entrada (puerto 8080). Los servicios solo exponen el 8000 dentro de la red de Docker."
+    },
+    {
+      "file": "infra/nginx/nginx.conf",
+      "pattern": "location = /api/auth/login",
+      "title": "Rutas del gateway",
+      "description": "`/api/auth` → auth-service, `/api/fleet` → fleet-core, `/api/reports` → reporting. El login tiene un límite de 10 intentos por minuto (RNF-03)."
+    },
+    {
+      "file": "infra/nginx/nginx.conf",
+      "pattern": "location /api/fleet/despacho/",
+      "title": "Ruta del despacho QR",
+      "description": "El portal del conductor entra por aquí, con su propio límite de tasa para frenar la adivinación de la credencial del QR (RF-18)."
+    },
+    {
+      "file": "docker-compose.yml",
+      "pattern": "  frontend:",
+      "title": "Frontend",
+      "description": "React + TypeScript + Vite en el puerto 5173. El navegador habla **solo con el gateway**, nunca directo con un microservicio."
+    }
+  ],
+  "nextTour": "2 · Backend: auth-service (usuarios, roles y JWT)"
+}

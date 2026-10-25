@@ -1,0 +1,63 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "3 · Backend: fleet-core-service (dominio de la flota)",
+  "description": "Vehículos, conductores, viajes, gastos, mantenimiento, costos y despacho QR.",
+  "isPrimary": false,
+  "steps": [
+    {
+      "file": "services/fleet-core-service/app/main.py",
+      "pattern": "include_router\\(vehicles_router\\)",
+      "title": "Módulos del dominio",
+      "description": "Un router por módulo: vehículos, conductores, viajes, gastos, mantenimiento, analítica, costos y despacho."
+    },
+    {
+      "file": "services/fleet-core-service/app/core/database.py",
+      "pattern": "CONNECTION_OPTIONS",
+      "title": "Esquema propio",
+      "description": "`search_path=fleet`: este servicio solo trabaja en su esquema. Las fechas se manejan en UTC."
+    },
+    {
+      "file": "services/fleet-core-service/app/core/deps.py",
+      "pattern": "def require_role",
+      "title": "Autorización por rol",
+      "description": "Cada endpoint declara qué roles lo usan (RF-03): sin token responde 401; con un rol no permitido, 403."
+    },
+    {
+      "file": "services/fleet-core-service/app/models/trip.py",
+      "pattern": "class Trip",
+      "title": "Modelo de datos",
+      "description": "Modelo ORM (SQLAlchemy) de un viaje; los cambios de esquema se versionan con **Alembic** (`migrations/versions`)."
+    },
+    {
+      "file": "services/fleet-core-service/app/trips/router.py",
+      "pattern": "def close_trip",
+      "title": "Flujo de punta a punta: cerrar un viaje",
+      "description": "Al cerrar el viaje se guardan el km final y el ingreso, se actualiza el odómetro del vehículo y se evalúan los mantenimientos pendientes: devuelve las **alertas** vencidas o próximas (RF-07, RF-13)."
+    },
+    {
+      "file": "services/fleet-core-service/app/maintenance/policy.py",
+      "pattern": "def assess",
+      "title": "Política de alertas",
+      "description": "Calcula los km restantes y la urgencia (vencido o próximo) con el umbral de `maintenance_policy.json`: 1000 km, la mediana de los expertos."
+    },
+    {
+      "file": "services/fleet-core-service/app/despacho/router.py",
+      "pattern": "def create_despacho",
+      "title": "Despacho por QR",
+      "description": "El conductor registra la salida desde el celular, autenticado con la credencial de su QR (guardada como hash y con vigencia), sin usuario ni contraseña (RF-18)."
+    },
+    {
+      "file": "services/fleet-core-service/app/analytics/router.py",
+      "pattern": "def trip_aggregate",
+      "title": "Agregaciones para reportes",
+      "description": "Las sumas se hacen en SQL aquí y reporting-service las consume: pocas llamadas sin importar cuántos viajes haya."
+    },
+    {
+      "file": "services/fleet-core-service/app/costs/proration.py",
+      "pattern": "def accrued",
+      "title": "Prorrateo de costos fijos",
+      "description": "Los costos fijos y de personal se devengan por los días del período (año de 365 días)."
+    }
+  ],
+  "nextTour": "4 · Backend: reporting-service, modelo de costos y AHP"
+}

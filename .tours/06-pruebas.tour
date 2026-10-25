@@ -1,0 +1,32 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "6 · Pruebas, integración continua y validación",
+  "description": "Cómo se comprueba que el sistema funciona.",
+  "isPrimary": false,
+  "steps": [
+    {
+      "file": "services/reporting-service/tests/test_ahp.py",
+      "pattern": "def test_pesos_ahp_suman_uno",
+      "title": "Pruebas unitarias",
+      "description": "pytest: cada cálculo (AHP, costos, prorrateo) se compara con un cálculo hecho a mano."
+    },
+    {
+      "file": "services/reporting-service/tests/test_ahp_desempate_tablero.py",
+      "pattern": "def test_",
+      "title": "Prueba del desempate",
+      "description": "Comprueba que, a igual puntaje, el tablero muestra primero el mantenimiento más vencido."
+    },
+    {
+      "file": "services/reporting-service/tests/test_costs_smoke.py",
+      "pattern": "def test_los_costos_fijos",
+      "title": "Pruebas de integración",
+      "description": "Peticiones HTTP reales a través del gateway, con autenticación y roles, contra una pila aislada."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "pattern": "jobs:",
+      "title": "Integración continua",
+      "description": "GitHub Actions corre las pruebas unitarias, construye las imágenes y levanta la pila completa en cada cambio."
+    }
+  ]
+}

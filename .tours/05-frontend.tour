@@ -1,0 +1,57 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "5 · Frontend: React + TypeScript",
+  "description": "Cómo se conecta el navegador con el backend y qué muestra.",
+  "isPrimary": false,
+  "steps": [
+    {
+      "file": "frontend/src/App.tsx",
+      "pattern": "<Routes>",
+      "title": "Rutas de la aplicación",
+      "description": "Cada pantalla es una ruta. `/login` y `/despacho` son públicas; las demás exigen sesión y algunas, el rol admin."
+    },
+    {
+      "file": "frontend/src/services/apiClient.ts",
+      "pattern": "const API_BASE_URL",
+      "title": "Conexión con el gateway",
+      "description": "Todas las llamadas van a `http://<host>:8080/api`, es decir, al **gateway**; nunca a un microservicio directamente."
+    },
+    {
+      "file": "frontend/src/services/apiClient.ts",
+      "pattern": "Authorization",
+      "title": "Token en cada petición",
+      "description": "El JWT viaja en la cabecera `Authorization: Bearer`."
+    },
+    {
+      "file": "frontend/src/context/AuthContext.tsx",
+      "pattern": "login: \\(username",
+      "title": "Sesión del usuario",
+      "description": "El contexto de autenticación guarda el token y el rol, y cierra la sesión si el servidor rechaza el token."
+    },
+    {
+      "file": "frontend/src/pages/DashboardPage.tsx",
+      "pattern": "reportsApi\\.summary\\(token, filters\\)",
+      "title": "Tablero",
+      "description": "El tablero consume reporting-service: indicadores, gráficas, estructura de costos y ranking AHP."
+    },
+    {
+      "file": "frontend/src/pages/MaintenancePage.tsx",
+      "pattern": "maintenancePriority\\(token\\)",
+      "title": "Mantenimiento priorizado",
+      "description": "Lista de mantenimientos ordenada por el AHP del backend."
+    },
+    {
+      "file": "frontend/src/pages/DriversPage.tsx",
+      "pattern": "<QRCodeSVG value=",
+      "title": "Generación del QR",
+      "description": "El administrador genera la credencial del conductor como código QR para la cabina."
+    },
+    {
+      "file": "frontend/src/pages/DespachoPage.tsx",
+      "pattern": "despachoApi\\.registrarSalida",
+      "title": "Portal móvil del conductor",
+      "description": "Desde el celular, el conductor registra la salida del viaje (RF-18)."
+    }
+  ],
+  "nextTour": "6 · Pruebas, integración continua y validación"
+}

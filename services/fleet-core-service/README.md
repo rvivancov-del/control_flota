@@ -125,9 +125,9 @@ umbral de `/maintenance/policy`).
 
 El umbral vive en `app/maintenance/maintenance_policy.json` (o en la ruta de
 `MAINTENANCE_POLICY_PATH`), que declara su `estado` y su `procedencia`; admite
-excepciones por tipo en `proximo_km_por_tipo`. Hoy el estado es
-`provisional_desarrollador` (1500 km, sin respaldo de expertos) y se reemplaza con
-la mediana de la pregunta 6.1 del cuestionario de expertos. Un archivo inválido
+excepciones por tipo en `proximo_km_por_tipo`. El umbral vigente
+es de 1000 km: la mediana de la pregunta 6.1 del cuestionario de expertos
+(estado `expertos_n=3`). Un archivo inválido
 detiene el arranque. No hay notificaciones por SMS o WhatsApp (fuera de alcance):
 la alerta es visible en la aplicación.
 
