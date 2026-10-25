@@ -117,6 +117,8 @@ Exporta los costos y los mantenimientos por vehículo y período a **Excel y PDF
 
 ## 📘 Guía de uso
 
+📄 **Manuales completos:** [Manual de usuario (PDF)](docs/manuales/manual_usuario.pdf) · [Manual técnico (PDF)](docs/manuales/manual_tecnico.pdf)
+
 <details open>
 <summary><b>1. Ingresar al sistema</b></summary>
 
@@ -250,6 +252,63 @@ docker compose ps        # los 6 contenedores deben estar «Up» o «healthy»
 
 **Datos de prueba:** la base de prueba ficticia (12 vehículos, 13 conductores y 640 viajes) está en `scripts/seed/pilot_dataset.sql`. Las instrucciones para cargarla están en [`scripts/README.md`](scripts/README.md).
 
+### Actualizar a la última versión (del Avance 2 al Avance 3)
+
+**A) Computadora nueva (todavía no tiene el proyecto)**
+
+```
+git clone https://github.com/rvivancov-del/control_flota.git
+cd control_flota
+docker compose up --build -d
+```
+
+**B) La computadora ya tiene la versión del Avance 2: actualizar al Avance 3**
+
+```
+cd control_flota
+git status
+git stash
+git fetch origin --tags
+git checkout main
+git pull origin main
+docker compose down
+docker compose up --build -d
+docker compose restart gateway
+docker compose ps
+```
+
+**Qué hace cada comando:**
+- `cd control_flota`: entra a la carpeta del proyecto, o a la carpeta donde lo clonó.
+- `git status`: muestra si hay cambios locales.
+- `git stash`: solo hace falta si `git status` mostró archivos modificados. Guarda esos cambios aparte; se recuperan con `git stash pop`.
+- `git fetch origin --tags`: descarga la versión nueva y las etiquetas de cada entrega.
+- `git checkout main`: se ubica en la rama principal.
+- `git pull origin main`: trae la última versión, la del Avance 3.
+- `docker compose down`: detiene el sistema y **conserva** la base de datos.
+- `docker compose up --build -d`: reconstruye las imágenes con el código nuevo.
+- `docker compose restart gateway`: refresca las rutas del gateway hacia los servicios recién creados.
+- `docker compose ps`: los 6 contenedores deben estar en «Up» o «healthy».
+
+**Comprobaciones:**
+- `git log --oneline -1` debe mostrar el último commit de GitHub, y `git describe --tags` debe mostrar `v2.0-avance3`.
+- En http://localhost:5173 → **Mantenimiento**, la prioridad debe mostrar «seguridad (53 %), urgencia (42 %) y costo (5 %)».
+
+**Datos:** del Avance 2 al Avance 3 no hay migraciones nuevas de la base. Los datos se conservan y no hace falta `docker compose down -v`.
+
+**Volver a una entrega anterior (solo para consultarla):**
+- `git checkout v1.1-avance2` muestra el Avance 2.
+- `git checkout main` vuelve al Avance 3.
+- Después de cambiar de versión, ejecute `docker compose up --build -d`.
+
+**Si `git pull` dice que hay conflictos:** el proyecto se modificó a mano en esa computadora. Para descartar esos cambios y quedar exactamente igual que GitHub:
+
+```
+git fetch origin
+git reset --hard origin/main
+```
+
+**Cuidado:** este comando borra los cambios locales que no se hayan guardado con `git stash`.
+
 ### Comandos útiles
 | Comando | Qué hace |
 |---|---|
@@ -271,12 +330,15 @@ docker compose ps        # los 6 contenedores deben estar «Up» o «healthy»
 | *port is already allocated* | Otro programa usa el puerto 5173 u 8080: ciérralo o cambia el puerto de la izquierda en `docker-compose.yml` (por ejemplo, `8090:80`) |
 | Un contenedor queda en *Exited* o *Restarting* | Revisa el motivo con `docker compose logs <servicio>` y luego ejecuta `docker compose restart <servicio>` |
 | Cambié código y no se ve | Reconstruye ese servicio: `docker compose up --build -d <servicio>` |
-| El QR no abre en el celular | El celular debe estar en la misma red Wi-Fi. Genera el QR con la IP de la computadora (por ejemplo, `http://192.168.1.37:5173`), no con `localhost` |
+| El QR no abre en el celular | El celular debe estar en la misma red Wi-Fi. Abre el panel con la IP de la computadora (por ejemplo, `http://192.168.1.37:5173`) y agrega ese origen a `CORS_ORIGINS` en el `.env` de los tres servicios |
 
 ### Pruebas
+Las pruebas no van dentro de las imágenes: se corren en un contenedor que monta la carpeta del servicio (Git Bash en Windows; en Linux o macOS se usa `$(pwd)` y se omite `MSYS_NO_PATHCONV=1`):
 ```bash
-docker compose exec <servicio> sh -c "pip install -q -r requirements-test.txt && pytest -q"
+cd services/reporting-service
+MSYS_NO_PATHCONV=1 docker run --rm --user root -v "$(pwd -W):/app" -w /app -e APP_ENV=development   -e PYTHONPATH=/home/appuser/.local/lib/python3.12/site-packages sistema-control-flota-reporting-service   sh -c "pip install -q -r requirements-test.txt httpx==0.27.2 && python -m pytest tests -m 'not smoke' -q"
 ```
+Los detalles, incluidas las pruebas de integración, están en el [manual técnico](docs/manuales/manual_tecnico.pdf).
 La integración continua (`.github/workflows/ci.yml`) corre las pruebas en cada cambio.
 
 ---
