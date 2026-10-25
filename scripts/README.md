@@ -134,6 +134,7 @@ de reexportar, actualice el documento y la matriz de trazabilidad
 | `gen_er_diagram.py` | Genera el modelo entidad-relación (Mermaid) y el diccionario de datos desde el esquema en ejecución; con `--check` falla si el diagrama quedó desactualizado. |
 | `gen_informe_pruebas.py` | Resume los JUnit XML de las tres suites (unitarias e integración) en el informe de pruebas que cita el documento. |
 | `gen_cifras_avance2.py` | Reúne en un JSON las cifras que citó el documento del Avance 2 (pruebas, AHP, cobertura, carga). Se conserva como registro de esa entrega. |
+| `enlace_despacho_demo.py` | Emite una credencial QR nueva para un conductor ficticio de la base de prueba y escribe el enlace del portal de despacho, para mostrarlo en el navegador con la vista de celular. |
 | `capturas_readme.py` | Toma las capturas de `docs/capturas/` y graba el recorrido de `docs/video/` con Playwright, con la pila local corriendo. |
 
 ## Pila de verificación aislada
