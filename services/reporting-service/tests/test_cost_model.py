@@ -145,11 +145,12 @@ def test_modo_bruto_devuelve_los_montos_tal_cual():
 
 def test_modo_neto_quita_el_iva_solo_de_los_rubros_con_tarifa():
     neto = cm.apply_iva(ITEMS, iva_config.CONFIG.rates, "neto")
-    assert neto["combustible"] == D(300) and neto["peaje"] == D(50) and neto["personal"] == D(200)  # tarifa 0
+    assert neto["peaje"] == D(50) and neto["personal"] == D(200)  # tarifa 0
+    assert neto["combustible"].quantize(D("0.0001")) == D("260.8696")  # 300 / 1,15 (IVA del SRI, septiembre de 2026)
     assert neto["alimentacion"].quantize(D("0.0001")) == D("34.7826")  # 40 / 1,15
     assert neto["mantenimiento"].quantize(D("0.0001")) == D("95.6522")  # 110 / 1,15
     ind = cm.compute_indicators(neto, KM, REVENUE, KM)
-    _eq(ind.variable_cost, "480.4348")  # 300 + 50 + 150/1,15
+    _eq(ind.variable_cost, "441.3043")  # 450/1,15 + 50
     assert ind.variable_cost < D(500)
 
 
@@ -216,7 +217,7 @@ def _escribir(tmp_path, datos):
 def test_la_configuracion_entregada_carga_y_declara_su_procedencia():
     cfg = iva_config.load_config()
     assert cfg.default_mode == "bruto" and cfg.estado == "pendiente_de_verificacion_contable"
-    assert cfg.procedencia and cfg.rates["mantenimiento"] == D("0.15") and cfg.rates["combustible"] == D(0)
+    assert cfg.procedencia and cfg.rates["mantenimiento"] == D("0.15") and cfg.rates["combustible"] == D("0.15")
     assert set(cfg.rates) == set(cm.ALL_ITEMS)
 
 

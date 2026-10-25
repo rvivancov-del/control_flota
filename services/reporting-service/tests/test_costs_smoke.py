@@ -87,14 +87,16 @@ def test_el_operador_ve_costos_variables_pero_no_fijos_ni_personal(base_url, aut
 def test_el_iva_neto_llega_hasta_la_respuesta_y_no_toca_los_costos_sin_tarifa(base_url, auth_headers):
     bruto, neto = _resumen(base_url, auth_headers), _resumen(base_url, auth_headers, iva_mode="neto")
     assert (bruto["iva_mode"], neto["iva_mode"]) == ("bruto", "neto")
-    assert Decimal(neto["fleet_costs"]["variable_cost"]) < Decimal(bruto["fleet_costs"]["variable_cost"])  # alimentación y mantenimiento pierden el 15 %
+    assert Decimal(neto["fleet_costs"]["variable_cost"]) < Decimal(bruto["fleet_costs"]["variable_cost"])  # combustible, alimentación y mantenimiento pierden el 15 %
     assert neto["fleet_costs"]["fixed_cost"] == bruto["fleet_costs"]["fixed_cost"]  # fijos y personal: tarifa 0 en iva_config.json
     assert neto["fleet_total_revenue"] == bruto["fleet_total_revenue"]
 
     def suma(r, campo):
         return sum(Decimal(v["breakdown"][campo]) for v in r["vehicles"])
 
-    assert suma(neto, "peaje") == suma(bruto, "peaje") and suma(neto, "combustible") == suma(bruto, "combustible")
+    assert suma(neto, "peaje") == suma(bruto, "peaje")  # tarifa 0
+    # combustible: 15 % (comprobantes del SRI); cada vehículo se redondea a centavos, de ahí la tolerancia
+    assert abs(suma(neto, "combustible") - suma(bruto, "combustible") / Decimal("1.15")) <= Decimal("0.01") * len(neto["vehicles"])
     for ruta in ("/reports/dashboard/trend", "/reports/dashboard/routes", "/reports/dashboard/drivers", "/reports/dashboard/records"):
         assert requests.get(f"{base_url}{ruta}", headers=auth_headers, params={**SEPTIEMBRE, "iva_mode": "neto"}).status_code == 200, ruta
         assert requests.get(f"{base_url}{ruta}", headers=auth_headers, params={**SEPTIEMBRE, "iva_mode": "gravado"}).status_code == 422, ruta

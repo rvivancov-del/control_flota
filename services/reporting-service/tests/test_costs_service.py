@@ -182,10 +182,10 @@ def test_iva_neto_convierte_solo_los_rubros_con_tarifa_y_no_toca_los_ingresos():
     bruto, neto = _resumen(include_fixed=True, iva_mode="bruto"), _resumen(include_fixed=True, iva_mode="neto")
     assert (bruto.iva_mode, neto.iva_mode) == ("bruto", "neto")
     v1 = _por_placa(neto)["AAA-111"]
-    # alimentación 24 y mantenimiento 66 llevan 15 %; combustible y peaje no
-    assert (v1.breakdown.combustible, v1.breakdown.peaje) == (D("180.00"), D("30.00"))
+    # combustible 180, alimentación 24 y mantenimiento 66 llevan 15 %; el peaje no
+    assert (v1.breakdown.combustible, v1.breakdown.peaje) == (D("156.52"), D("30.00"))  # 180/1,15
     assert (v1.breakdown.alimentacion, v1.breakdown.mantenimiento) == (D("20.87"), D("57.39"))  # 24/1,15 ; 66/1,15
-    assert v1.costs.variable_cost == D("288.26")  # 180 + 30 + 90/1,15
+    assert v1.costs.variable_cost == D("264.78")  # 270/1,15 + 30
     assert v1.revenue == D("750") and v1.costs.revenue == D("750.00")
     assert neto.fleet_costs.fixed_cost == bruto.fleet_costs.fixed_cost == D("930.00")  # fijos y personal: tarifa 0
     assert neto.fleet_costs.variable_cost < bruto.fleet_costs.variable_cost
@@ -229,7 +229,7 @@ def test_las_rutas_convierten_cada_tipo_de_gasto_en_modo_neto():
     bruto = service.build_route_summary(FakeFleet(), *PERIODO, iva_mode="bruto").routes[0]
     neto = service.build_route_summary(FakeFleet(), *PERIODO, iva_mode="neto").routes[0]
     assert bruto.cost_total == D("400.00")
-    assert neto.cost_total == D("394.78")  # 300 + 60 + 40/1,15
+    assert neto.cost_total == D("355.65")  # 340/1,15 + 60
     assert neto.cost_per_km < bruto.cost_per_km
 
 

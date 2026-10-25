@@ -1,10 +1,10 @@
 {
-  "version": "0.1.0-provisional",
+  "version": "0.2.0-provisional",
   "estado": "pendiente_de_verificacion_contable",
-  "procedencia": "Tarifas copiadas de frontend/src/utils/tax.ts, que las atribuye a la LRTI (Art. 56) y a una circular del SRI de diciembre de 2025. No las ha confirmado un contador ni el SRI, en especial el tratamiento del combustible y del seguro. Los costos fijos y de personal se dejan en 0 %. Sustituir por las tarifas que confirme el contador y pasar el estado a 'verificado_por_contador'.",
+  "procedencia": "Tarifas atribuidas a la LRTI (Art. 56) y a una circular del SRI de diciembre de 2025 (frontend/src/utils/tax.ts). Combustible corregido de 0 % a 15 % con evidencia primaria: los 13 comprobantes electrónicos de combustible de la Empresa A en septiembre de 2026 (SRI) cobran IVA del 15 % (102,32 sobre una base de 682,20; ver 12_RESULTADOS_OBTENIDOS/validacion_costos_mes_real.md); los 61 peajes del mismo mes, 0 %. No las ha confirmado un contador, en especial el seguro. Los costos fijos y de personal se dejan en 0 %. Sustituir por las tarifas que confirme el contador y pasar el estado a 'verificado_por_contador'.",
   "modo_por_defecto": "bruto",
   "tarifas": {
-    "combustible": 0,
+    "combustible": 0.15,
     "peaje": 0,
     "alimentacion": 0.15,
     "mantenimiento": 0.15,

@@ -3,7 +3,8 @@
  * Ley de Régimen Tributario Interno (Art. 56) y la Circular del SRI de
  * diciembre de 2025 que mantiene la tarifa general en 15%.
  *
- * - Combustibles (diésel, gasolina): tarifa 0% — exentos explícitamente.
+ * - Combustibles (diésel, gasolina): tarifa general 15%, como lo cobran los
+ *   comprobantes electrónicos del SRI de la empresa caso (septiembre de 2026).
  * - Peaje: tarifa 0% — uso de vías y puentes, exento.
  * - Alimentación (comida preparada en ruta) y mantenimiento (repuestos y
  *   mano de obra): tarifa general 15%.
@@ -16,14 +17,14 @@
 export type TaxableCategory = "combustible" | "peaje" | "alimentacion" | "mantenimiento";
 
 export const IVA_RATES: Record<TaxableCategory, number> = {
-  combustible: 0,
+  combustible: 0.15,
   peaje: 0,
   alimentacion: 0.15,
   mantenimiento: 0.15,
 };
 
 export const IVA_RATE_LABELS: Record<TaxableCategory, string> = {
-  combustible: "Exento (Art. 56 LRTI)",
+  combustible: "15%",
   peaje: "Exento (Art. 56 LRTI)",
   alimentacion: "15%",
   mantenimiento: "15%",
