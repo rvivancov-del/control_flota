@@ -1,0 +1,19 @@
+{
+  "name": "flotacontrol",
+  "version": "2.0.0",
+  "private": true,
+  "description": "FlotaControl: sistema web de microservicios para el control de costos y mantenimiento de una flota de carga pesada (FastAPI + React + PostgreSQL). Atajos para levantar todo con Docker Compose.",
+  "author": "Rosa Margarita Vivanco Vélez <rvivancov@unemi.edu.ec>",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:logs": "node scripts/dev.mjs --logs",
+    "estado": "docker compose ps",
+    "logs": "docker compose logs -f",
+    "stop": "docker compose stop",
+    "test": "node scripts/dev.mjs --tests",
+    "codigo": "code flotacontrol.code-workspace"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

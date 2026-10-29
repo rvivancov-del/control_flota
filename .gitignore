@@ -29,9 +29,10 @@ frontend/.env
 # Generado por scripts/make_verif_nginx.py (pila de verificación)
 infra/nginx/nginx.verif.conf
 
-# Editor / OS (se versiona solo la recomendación de extensiones)
+# Editor / OS (se versionan solo la recomendación de extensiones y las tareas de arranque)
 .vscode/*
 !.vscode/extensions.json
+!.vscode/tasks.json
 .idea/
 .DS_Store
 Thumbs.db

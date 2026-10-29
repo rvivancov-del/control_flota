@@ -16,7 +16,7 @@
       "**/*.tsbuildinfo": true,
       "**/.coverage": true
     },
-    "search.exclude": { "**/package-lock.json": true, "docs/video": true },
+    "search.exclude": { "**/package-lock.json": true, "**/node_modules": true, "docs/video": true },
     "codetour.promptForWorkspaceTours": true
   },
   "extensions": {

@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Levantar FlotaControl",
+      "detail": "npm run dev: construye y levanta los 6 contenedores, carga la base piloto si está vacía y abre el navegador",
+      "type": "shell",
+      "command": "npm run dev",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Estado de los contenedores",
+      "type": "shell",
+      "command": "npm run estado",
+      "problemMatcher": []
+    },
+    {
+      "label": "Detener FlotaControl",
+      "detail": "docker compose stop: detiene sin borrar datos",
+      "type": "shell",
+      "command": "npm run stop",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pruebas unitarias de los tres servicios",
+      "type": "shell",
+      "command": "npm test",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

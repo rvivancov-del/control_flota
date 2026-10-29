@@ -231,9 +231,33 @@ Más abajo están:
 | [Git](https://git-scm.com/downloads) | Clonar el repositorio |
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Ejecutar todo: los 3 servicios, la base de datos, el gateway y el frontend |
 
-No hace falta instalar Python, Node.js ni PostgreSQL: todo corre en contenedores.
+| [Node.js 18 o superior](https://nodejs.org/) | Solo para el arranque con un solo comando (`npm run dev`); es opcional |
 
-### Puesta en marcha (5 minutos)
+No hace falta instalar Python ni PostgreSQL: todo corre en contenedores.
+
+### Arranque con un solo comando
+Desde la carpeta del repositorio, en CMD, PowerShell o la terminal de VS Code:
+```bash
+npm run dev
+```
+El script (`scripts/dev.mjs`) no necesita `npm install`, porque solo usa Node:
+- abre Docker Desktop si está apagado;
+- construye y levanta los 6 contenedores, y espera a que la base y los tres servicios estén sanos;
+- si la base está vacía, carga la base de prueba ficticia (`scripts/seed/pilot_dataset.sql`) y la verifica contra su manifiesto. Si ya tiene datos, no la toca;
+- muestra la dirección y el usuario, y abre el navegador.
+
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Levanta todo y deja la terminal libre (`--sin-navegador` evita abrir el navegador) |
+| `npm run dev:logs` | Igual, y después sigue los registros |
+| `npm run codigo` | Abre el proyecto en VS Code con el espacio de trabajo `flotacontrol.code-workspace` |
+| `npm run estado` | Estado de los contenedores |
+| `npm run stop` | Detiene todo sin borrar datos |
+| `npm test` | Pruebas unitarias de los tres servicios en contenedores desechables |
+
+En VS Code, **Terminal → Ejecutar tarea de compilación** (Ctrl + Shift + B) también ejecuta `npm run dev`. Ningún atajo ejecuta `docker compose down -v`, que borra la base de datos.
+
+### Puesta en marcha manual (sin Node.js)
 ```bash
 git clone https://github.com/rvivancov-del/control_flota.git
 cd control_flota
